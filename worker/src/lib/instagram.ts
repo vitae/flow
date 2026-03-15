@@ -6,7 +6,7 @@ const FLOW_HASHTAGS = [
   'firedance', 'fans', 'firespinner', 'leviwand', 'staffspinning',
   'hooping', 'ledflow', 'whips', 'buugeng', 'contactjuggling',
 ];
-const HASHTAGS_PER_DAY = 5;
+const HASHTAGS_PER_DAY = 8;
 
 function appsecretProof(token: string): string {
   return crypto.createHmac('sha256', process.env.META_APP_SECRET!).update(token).digest('hex');
@@ -88,10 +88,10 @@ export async function discoverViralVideos(): Promise<IGMedia[]> {
     const decent = unique.filter(v => (v.like_count || 0) >= 1000);
     decent.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
     console.log(`[scout] No viral videos, falling back to ${decent.length} with 1k+ likes`);
-    return decent.slice(0, 5);
+    return decent.slice(0, 15);
   }
 
-  return viral.slice(0, 5);
+  return viral.slice(0, 15);
 }
 
 // --- Private API for video URL extraction ---

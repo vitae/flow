@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import fs from 'fs';
 import { execSync } from 'child_process';
+import ytdl from '@distube/ytdl-core';
 import { getSupabase } from '../shared/supabase';
 import { ensureTmpDir } from './ffmpeg';
 
@@ -72,52 +73,51 @@ export async function uploadToYouTube(
 
 export async function downloadYTAudio(videoId: string): Promise<string> {
   ensureTmpDir();
-  const outputPath = `/tmp/flow-curation/${videoId}.mp3`;
+  const outputPath = `/tmp/flow-curation/${videoId}.mp4`;
+  const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-  // Update yt-dlp first (in case it's outdated)
+  console.log(`[youtube] Downloading audio via ytdl-core: ${videoId}`);
+
+  // Try Node.js native ytdl-core first (most reliable on Railway)
   try {
-    execSync('yt-dlp --update 2>&1 || true', { timeout: 30000 });
-  } catch {}
+    const stream = ytdl(url, {
+      filter: 'audioonly',
+      quality: 'highestaudio',
+    });
+    const writeStream = fs.createWriteStream(outputPath);
 
-  const cmd = [
-    'yt-dlp',
-    '-x',
-    '--audio-format mp3',
-    '--audio-quality 192K',
-    '--no-check-certificates',
-    '--force-overwrites',
-    '--no-playlist',
-    '--no-warnings',
-    `-o "${outputPath}"`,
-    `"https://www.youtube.com/watch?v=${videoId}"`,
-  ].join(' ');
+    await new Promise<void>((resolve, reject) => {
+      stream.pipe(writeStream);
+      stream.on('error', reject);
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+      // Timeout after 60 seconds
+      setTimeout(() => reject(new Error('ytdl-core download timed out')), 60000);
+    });
 
-  console.log(`[youtube] Downloading audio: ${cmd}`);
+    const size = fs.statSync(outputPath).size;
+    console.log(`[youtube] ytdl-core downloaded: ${outputPath} (${size} bytes)`);
 
-  try {
-    const result = execSync(cmd, { timeout: 120000, encoding: 'utf-8' });
-    console.log(`[youtube] yt-dlp output: ${result.slice(0, 500)}`);
-  } catch (err: any) {
-    console.error(`[youtube] yt-dlp failed:`, err.stderr?.slice(0, 500) || err.message);
-    throw new Error(`yt-dlp audio download failed: ${err.message}`);
+    if (size < 1000) throw new Error(`Audio file too small (${size} bytes)`);
+    return outputPath;
+  } catch (ytdlErr: any) {
+    console.error(`[youtube] ytdl-core failed: ${ytdlErr.message}`);
   }
 
-  if (!fs.existsSync(outputPath)) {
-    // yt-dlp sometimes appends extra extension
-    const altPath = outputPath.replace('.mp3', '.mp3.mp3');
-    if (fs.existsSync(altPath)) {
-      fs.renameSync(altPath, outputPath);
-    } else {
-      throw new Error(`Audio file not found at ${outputPath}`);
+  // Fallback to yt-dlp CLI
+  const mp3Path = outputPath.replace('.mp4', '.mp3');
+  try {
+    const cmd = `yt-dlp -x --audio-format mp3 --no-check-certificates --force-overwrites --no-playlist -o "${mp3Path}" "${url}"`;
+    console.log(`[youtube] Falling back to yt-dlp CLI...`);
+    execSync(cmd, { timeout: 120000, encoding: 'utf-8' });
+
+    if (fs.existsSync(mp3Path) && fs.statSync(mp3Path).size > 1000) {
+      console.log(`[youtube] yt-dlp succeeded: ${mp3Path}`);
+      return mp3Path;
     }
+  } catch (err: any) {
+    console.error(`[youtube] yt-dlp also failed: ${err.message}`);
   }
 
-  const size = fs.statSync(outputPath).size;
-  console.log(`[youtube] Downloaded audio: ${outputPath} (${size} bytes)`);
-
-  if (size < 1000) {
-    throw new Error(`Audio file too small (${size} bytes)`);
-  }
-
-  return outputPath;
+  throw new Error(`All audio download methods failed for ${videoId}`);
 }

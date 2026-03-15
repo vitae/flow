@@ -22,7 +22,7 @@ export async function runScout(): Promise<{ discovered: number; queued: number }
 
   console.log(`[scout] ${videos.length} discovered, ${newVideos.length} new`);
 
-  const toQueue = newVideos.slice(0, 3);
+  const toQueue = newVideos.slice(0, 10);
   if (toQueue.length > 0) {
     const rows = toQueue.map(v => {
       // Extract username from caption mentions or permalink user info
