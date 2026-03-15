@@ -3,6 +3,9 @@ import { CuratedPost } from '../shared/types';
 import { downloadFile, getVideoDuration } from '../lib/ffmpeg';
 import { getVideoUrl } from '../lib/instagram';
 
+const MIN_DURATION = 45;
+const MAX_DURATION = 59;
+
 async function handlePost(post: CuratedPost) {
   console.log(`[downloader] Downloading ${post.ig_permalink}`);
 
@@ -12,6 +15,11 @@ async function handlePost(post: CuratedPost) {
   const videoPath = await downloadFile(url, `${post.ig_media_id}.mp4`);
   const duration = await getVideoDuration(videoPath);
   console.log(`[downloader] Downloaded: ${duration.toFixed(1)}s`);
+
+  // Only keep videos between 45-59 seconds for quality Shorts
+  if (duration < MIN_DURATION || duration > MAX_DURATION) {
+    throw new Error(`Duration ${duration.toFixed(1)}s outside ${MIN_DURATION}-${MAX_DURATION}s range, skipping`);
+  }
 
   return { video_path: videoPath, video_duration: duration };
 }

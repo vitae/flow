@@ -1,21 +1,39 @@
 import crypto from 'crypto';
 import { getSupabase } from '../shared/supabase';
 
-const FLOW_HASHTAGS = [
-  'flowarts', 'flowartsfriday', 'hulahoop', 'poi', 'juggling',
-  'firedance', 'fans', 'firespinner', 'leviwand', 'staffspinning',
-  'hooping', 'ledflow', 'whips', 'buugeng', 'contactjuggling',
+// Viral content across flow arts, dance, extreme sports, rave culture
+const VIRAL_HASHTAGS = [
+  // Flow arts core
+  'flowarts', 'flowartsfriday', 'hulahoop', 'hulahoops', 'hooping',
+  'poi', 'poispinning', 'leviwand', 'staffspinning', 'buugeng',
+  'contactjuggling', 'juggling', 'firespinner', 'firedance', 'fireperformance',
+  'ledflow', 'gloving', 'whip', 'whipcracking', 'fans',
+  // Dance & performance
+  'dance', 'dancer', 'dancing', 'choreography', 'shuffle',
+  'shuffledance', 'popping', 'breaking', 'hiphop', 'contemporary',
+  // Swords & martial arts
+  'sword', 'swordsmanship', 'katana', 'martialarts', 'lightsaber',
+  // Extreme sports
+  'snowboard', 'snowboarding', 'skateboarding', 'surfing', 'parkour',
+  'bmx', 'skiing', 'wakeboarding', 'motocross', 'climbing',
+  // Rave & music culture
+  'dj', 'edm', 'rave', 'plur', 'festival',
+  'ravefashion', 'bassmusic', 'dubstep', 'techno', 'housemusic',
+  'raver', 'festivalseason', 'raveparty', 'edmfamily', 'totems',
+  // Viral amplifiers
+  'viral', 'viralreels', 'satisfying', 'oddlysatisfying', 'nextlevel',
+  'mindblowing', 'skills', 'talent', 'insane', 'amazing',
 ];
-const HASHTAGS_PER_DAY = 8;
+const HASHTAGS_PER_DAY = 15;
 
 function appsecretProof(token: string): string {
   return crypto.createHmac('sha256', process.env.META_APP_SECRET!).update(token).digest('hex');
 }
 
 export function getTodaysHashtags(): string[] {
-  const dayIndex = Math.floor(Date.now() / 86400000) % Math.ceil(FLOW_HASHTAGS.length / HASHTAGS_PER_DAY);
+  const dayIndex = Math.floor(Date.now() / 86400000) % Math.ceil(VIRAL_HASHTAGS.length / HASHTAGS_PER_DAY);
   const start = dayIndex * HASHTAGS_PER_DAY;
-  return FLOW_HASHTAGS.slice(start, start + HASHTAGS_PER_DAY);
+  return VIRAL_HASHTAGS.slice(start, start + HASHTAGS_PER_DAY);
 }
 
 export interface IGMedia {
@@ -63,7 +81,7 @@ async function searchHashtag(hashtag: string, token: string, igUserId: string): 
   return (mediaData.data || []).filter((m: IGMedia) => m.media_type === 'VIDEO');
 }
 
-const MIN_LIKES_FOR_VIRAL = 10_000; // Only pick videos with 10k+ likes (proxy for millions of views)
+const MIN_LIKES_FOR_VIRAL = 10_000; // Viral threshold for niche content (10k+ likes)
 
 export async function discoverViralVideos(): Promise<IGMedia[]> {
   const { token, igUserId } = await getIGAccessToken();
@@ -83,15 +101,15 @@ export async function discoverViralVideos(): Promise<IGMedia[]> {
   viral.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
   console.log(`[scout] Total unique: ${unique.length}, viral (${MIN_LIKES_FOR_VIRAL}+ likes): ${viral.length}`);
 
-  // If no viral videos found, lower threshold but still require 1k+ likes
+  // If no 10k+ videos found, lower threshold to 1k+
   if (viral.length === 0) {
-    const decent = unique.filter(v => (v.like_count || 0) >= 1000);
+    const decent = unique.filter(v => (v.like_count || 0) >= 1_000);
     decent.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
-    console.log(`[scout] No viral videos, falling back to ${decent.length} with 1k+ likes`);
-    return decent.slice(0, 15);
+    console.log(`[scout] No 50k+ viral, falling back to ${decent.length} with 10k+ likes`);
+    return decent.slice(0, 20);
   }
 
-  return viral.slice(0, 15);
+  return viral.slice(0, 20);
 }
 
 // --- Private API for video URL extraction ---

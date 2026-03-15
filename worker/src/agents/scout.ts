@@ -22,14 +22,11 @@ export async function runScout(): Promise<{ discovered: number; queued: number }
 
   console.log(`[scout] ${videos.length} discovered, ${newVideos.length} new`);
 
-  const toQueue = newVideos.slice(0, 10);
+  const toQueue = newVideos.slice(0, 20);
   if (toQueue.length > 0) {
     const rows = toQueue.map(v => {
-      // Extract username from caption mentions or permalink user info
       const mentionMatch = v.caption?.match(/@(\w+)/);
-      // IG Graph API recent_media doesn't include username directly,
-      // so extract from caption or use 'flowartist' as fallback
-      const username = mentionMatch?.[1] || 'flowartist';
+      const username = mentionMatch?.[1] || 'creator';
       return {
         ig_media_id: v.id,
         ig_username: username,
