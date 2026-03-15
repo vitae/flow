@@ -12,6 +12,7 @@ const config: Config = {
           green: '#00FF00',
           magenta: '#FF00FF',
           yellow: '#FFFF00',
+          cyan: '#00FFFF',
           red: '#FF0000',
           black: '#000000',
           dark: '#0a0a0a',

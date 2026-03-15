@@ -2,15 +2,89 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Upload, Sparkles, Music, Hash, Share2, Zap, ArrowRight } from 'lucide-react';
+import { Upload, Sparkles, Music, Hash, Share2, Zap, ArrowRight, Check, Crown, Rocket, Users } from 'lucide-react';
 
 const features = [
   { icon: Upload, title: 'Upload once', desc: 'Drag & drop your video — we handle the rest', color: 'text-flow-green' },
   { icon: Music, title: 'Trending music', desc: 'Auto-add royalty-free trending tracks from YouTube', color: 'text-flow-magenta' },
   { icon: Sparkles, title: 'AI captions', desc: 'Auto-generated captions burned into every video', color: 'text-flow-green' },
   { icon: Hash, title: 'Smart hashtags', desc: 'AI picks trending + niche hashtags per platform', color: 'text-flow-magenta' },
-  { icon: Share2, title: 'Post everywhere', desc: 'YouTube, Instagram, Facebook, X — simultaneously', color: 'text-flow-green' },
+  { icon: Share2, title: 'Post everywhere', desc: 'YouTube, Instagram, Facebook, Threads — simultaneously', color: 'text-flow-green' },
   { icon: Zap, title: 'Auto-format', desc: 'Transcoded to each platform\'s ideal specs', color: 'text-flow-magenta' },
+];
+
+const platforms = [
+  { name: 'YouTube', users: '2.7B', color: '#FF0000' },
+  { name: 'Instagram', users: '2.4B', color: '#E4405F' },
+  { name: 'Facebook', users: '3.1B', color: '#1877F2' },
+  { name: 'Threads', users: '300M', color: '#8B5CF6' },
+];
+
+const tiers = [
+  {
+    name: 'Starter',
+    price: '$9.99',
+    badge: null,
+    badgeClass: '',
+    priceClass: 'text-flow-green',
+    checkClass: 'text-flow-green',
+    borderClass: 'glass-card',
+    btnClass: 'btn-secondary',
+    btnText: 'Start Free Trial',
+    features: [
+      '5 videos / month',
+      'Auto AI captions',
+      '2 platforms',
+      'Basic hashtags',
+      'Standard processing',
+      'Email support',
+    ],
+  },
+  {
+    name: 'Pro',
+    price: '$19.99',
+    badge: 'MOST POPULAR',
+    badgeClass: 'bg-flow-magenta/10 text-flow-magenta border-flow-magenta/20',
+    priceClass: 'text-flow-magenta',
+    checkClass: 'text-flow-magenta',
+    borderClass: 'glass-card-magenta border-flow-magenta/30',
+    btnClass: 'btn-magenta',
+    btnText: 'Go Pro',
+    features: [
+      '25 videos / month',
+      'Auto AI captions',
+      'All 4 platforms',
+      'Trending music library',
+      'Smart hashtags + trending tags',
+      'Priority processing',
+      'Analytics dashboard',
+      'Promo Boost (1x/month)',
+    ],
+  },
+  {
+    name: 'Unlimited',
+    price: '$29.99',
+    badge: 'BEST VALUE',
+    badgeClass: 'bg-flow-yellow/10 text-flow-yellow border-flow-yellow/20',
+    priceClass: 'text-flow-yellow',
+    checkClass: 'text-flow-yellow',
+    borderClass: 'glass-card border-flow-yellow/30',
+    btnClass: 'btn-primary',
+    btnText: 'Go Unlimited',
+    features: [
+      'Unlimited videos',
+      'Auto AI captions',
+      'All 4 platforms + future platforms',
+      'Full trending music library',
+      'AI hashtags + custom hashtag sets',
+      'Fastest priority processing',
+      'Advanced analytics + insights',
+      'Promo Boost (4x/month)',
+      'Dedicated account manager',
+      'Custom branding & watermarks',
+      'API access',
+    ],
+  },
 ];
 
 export default function HomePage() {
@@ -60,7 +134,7 @@ export default function HomePage() {
 
             <p className="text-lg md:text-xl text-flow-gray-200 max-w-2xl mx-auto mb-10 leading-relaxed">
               AI strips your audio, adds trending music, generates captions & hashtags,
-              then posts to YouTube, Instagram, Facebook & X — all at once.
+              then posts to YouTube, Instagram, Facebook & Threads — all at once.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -73,21 +147,37 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          {/* Platform icons */}
+          {/* Platform reach */}
           <motion.div
-            className="mt-16 flex items-center justify-center gap-8 text-flow-gray-400"
+            className="mt-16"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            <span className="text-sm uppercase tracking-wider">Distributes to</span>
-            <div className="flex gap-6 text-flow-gray-300">
-              {['YouTube', 'Instagram', 'Facebook', 'X'].map((p) => (
-                <span key={p} className="font-display font-semibold text-sm border border-flow-gray-600 rounded-lg px-3 py-1">
-                  {p}
-                </span>
+            <p className="text-sm uppercase tracking-wider text-flow-gray-500 mb-6">
+              Reach billions of users across every platform
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              {platforms.map((p) => (
+                <div
+                  key={p.name}
+                  className="flex items-center gap-3 rounded-xl border border-flow-gray-700 bg-flow-gray-900/50 px-5 py-3 hover:border-flow-gray-500 transition-all"
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: p.color }}
+                  />
+                  <span className="font-display font-semibold text-sm">{p.name}</span>
+                  <div className="flex items-center gap-1 text-flow-gray-400">
+                    <Users className="w-3 h-3" />
+                    <span className="text-xs font-medium">{p.users} users</span>
+                  </div>
+                </div>
               ))}
             </div>
+            <p className="text-xs text-flow-gray-600 mt-4">
+              Combined reach of <span className="text-flow-green font-semibold">8.5 billion+</span> monthly active users
+            </p>
           </motion.div>
         </div>
       </section>
@@ -124,42 +214,122 @@ export default function HomePage() {
       </section>
 
       {/* Pricing */}
-      <section className="py-20 px-6 border-t border-flow-green/10">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="font-display font-bold text-3xl mb-12">
-            Simple <span className="text-flow-green">pricing</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-            <div className="glass-card p-8">
-              <h3 className="font-display font-bold text-xl mb-2">Free</h3>
-              <p className="text-3xl font-display font-black text-flow-green mb-4">$0<span className="text-sm text-flow-gray-400">/mo</span></p>
-              <ul className="text-left text-sm text-flow-gray-300 space-y-2 mb-6">
-                <li>• 3 videos / month</li>
-                <li>• Auto captions</li>
-                <li>• 2 platforms max</li>
-              </ul>
-              <Link href="/auth/login" className="btn-secondary w-full">Get started</Link>
-            </div>
-            <div className="glass-card-magenta p-8 border-flow-magenta/30">
-              <div className="inline-block bg-flow-magenta/10 text-flow-magenta text-xs font-semibold px-3 py-1 rounded-full mb-3">POPULAR</div>
-              <h3 className="font-display font-bold text-xl mb-2">Pro</h3>
-              <p className="text-3xl font-display font-black text-flow-magenta mb-4">$29<span className="text-sm text-flow-gray-400">/mo</span></p>
-              <ul className="text-left text-sm text-flow-gray-300 space-y-2 mb-6">
-                <li>• Unlimited videos</li>
-                <li>• All 4 platforms</li>
-                <li>• Trending music + hashtags</li>
-                <li>• Priority processing</li>
-              </ul>
-              <Link href="/auth/login" className="btn-magenta w-full">Go Pro</Link>
-            </div>
+      <section id="pricing" className="py-20 px-6 border-t border-flow-green/10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="font-display font-bold text-3xl md:text-4xl mb-4">
+              Choose your <span className="text-flow-green">flow</span>
+            </h2>
+            <p className="text-flow-gray-300 text-lg">Start free. Scale when you&apos;re ready.</p>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {tiers.map((tier, i) => (
+              <motion.div
+                key={tier.name}
+                className={`${tier.borderClass} p-8 relative flex flex-col`}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                {tier.badge && (
+                  <div className={`absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-semibold px-4 py-1 rounded-full border ${tier.badgeClass}`}>
+                    {tier.badge}
+                  </div>
+                )}
+
+                <h3 className="font-display font-bold text-xl mb-2">{tier.name}</h3>
+                <p className="mb-1">
+                  <span className={`text-4xl font-display font-black ${tier.priceClass}`}>
+                    {tier.price}
+                  </span>
+                  <span className="text-sm text-flow-gray-400">/mo</span>
+                </p>
+                <p className="text-xs text-flow-gray-500 mb-6">Billed monthly. Cancel anytime.</p>
+
+                <ul className="text-left text-sm text-flow-gray-300 space-y-3 mb-8 flex-1">
+                  {tier.features.map((feat) => (
+                    <li key={feat} className="flex items-start gap-2.5">
+                      <Check className={`w-4 h-4 ${tier.checkClass} mt-0.5 shrink-0`} />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link href="/auth/login" className={`${tier.btnClass} w-full text-center`}>
+                  {tier.btnText}
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* One-time upload */}
+          <motion.div
+            className="mt-10 max-w-2xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className="glass-card border-flow-cyan/20 p-6 flex flex-col md:flex-row items-center gap-6 hover:border-flow-cyan/40 transition-all">
+              <div className="flex-1 text-center md:text-left">
+                <div className="inline-block bg-flow-cyan/10 text-flow-cyan text-xs font-semibold px-3 py-1 rounded-full mb-2">
+                  PAY PER VIDEO
+                </div>
+                <h3 className="font-display font-bold text-xl mb-1">Single Video Upload</h3>
+                <p className="text-sm text-flow-gray-300">
+                  Upload one video and we&apos;ll post it to all your connected platforms with AI captions, trending music & hashtags. No subscription needed.
+                </p>
+              </div>
+              <div className="text-center shrink-0">
+                <p className="text-4xl font-display font-black text-flow-cyan mb-1">$5</p>
+                <p className="text-xs text-flow-gray-500 mb-3">one-time</p>
+                <Link
+                  href="/auth/login"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm bg-flow-cyan/10 text-flow-cyan border border-flow-cyan/20 hover:bg-flow-cyan/20 transition-all"
+                >
+                  Upload Now
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Social proof */}
+          <motion.div
+            className="mt-16 text-center"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+          >
+            <p className="text-flow-gray-400 text-sm mb-4">
+              Join flow artists, content creators, and social media managers who save hours every week
+            </p>
+            <div className="flex items-center justify-center gap-8 text-flow-gray-500 text-xs">
+              <div className="flex items-center gap-2">
+                <Rocket className="w-4 h-4 text-flow-magenta" />
+                <span>10x faster distribution</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Crown className="w-4 h-4 text-flow-yellow" />
+                <span>AI-optimized for each platform</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-flow-green" />
+                <span>Trending content engine</span>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="border-t border-flow-green/10 py-8 px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between text-sm text-flow-gray-400">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-flow-gray-400">
           <span className="font-display">© 2026 Flow AI by <span className="text-flow-green">GWDF</span></span>
+          <div className="flex items-center gap-6">
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+          </div>
           <span>Your Vibe Attracts Your Tribe</span>
         </div>
       </footer>
