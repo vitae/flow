@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import { google } from 'googleapis';
 import { getSupabase } from '../shared/supabase';
+import { logActivity } from '../shared/activity-log';
 
 // Refresh every 45 minutes (keep cookies fresh before they expire)
 const REFRESH_INTERVAL_MS = 45 * 60 * 1000;
@@ -173,8 +174,10 @@ export function startCookieRefresher() {
     try {
       const result = await refreshCookies();
       console.log(`[cookie-refresher] ✓ Refresh complete — ${result.cookies.length} cookies stored`);
+      await logActivity('cookie_refresher', 'refreshed', { cookies_count: result.cookies.length });
     } catch (err: any) {
       console.error(`[cookie-refresher] ✗ Error:`, err.message);
+      await logActivity('cookie_refresher', 'error', { error: err.message });
     }
   }
 

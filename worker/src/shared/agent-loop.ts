@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import { logActivity } from './activity-log';
 import { AgentConfig, CuratedPost } from './types';
 
 export function createAgentLoop(
@@ -32,6 +33,7 @@ export function createAgentLoop(
           continue;
         }
 
+        await logActivity(config.name, 'processing', { post_id: post.id, ig_permalink: post.ig_permalink });
         const updates = await processOne(post as CuratedPost);
         await supabase
           .from('curated_posts')
@@ -40,6 +42,7 @@ export function createAgentLoop(
 
         processed++;
         console.log(`[${config.name}] ✓ ${post.id} → ${config.outputStatus}`);
+        await logActivity(config.name, 'completed', { post_id: post.id, output_status: config.outputStatus });
       } catch (err: any) {
         console.error(`[${config.name}] ✗ ${post.id}:`, err.message);
         await supabase
@@ -50,6 +53,7 @@ export function createAgentLoop(
             failed_at_stage: config.name,
           })
           .eq('id', post.id);
+        await logActivity(config.name, 'error', { post_id: post.id, error: err.message });
       }
     }
     return processed;

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   LayoutDashboard, Upload, Link2, Settings, LogOut, Menu, X,
   Video, ChevronRight, Sparkles, Rocket, MessageCircle, ChevronDown, ChevronUp,
-  Home, Search, PlusCircle, User, Compass, Zap, MapPin, Instagram
+  Home, Search, PlusCircle, User, Compass, Zap, MapPin, Instagram, Bot
 } from 'lucide-react';
 import type { User as FlowUser } from '@/lib/types';
 
@@ -16,6 +16,7 @@ const sideNavItems = [
   { href: '/dashboard/discover', label: 'Discover', icon: Compass },
   { href: '/dashboard/upload', label: 'Upload', icon: Upload },
   { href: '/dashboard/connections', label: 'Connections', icon: Link2 },
+  { href: '/dashboard/agents', label: 'Agents', icon: Bot },
   { href: '/dashboard/messages', label: 'Messages', icon: MessageCircle },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];

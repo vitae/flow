@@ -1,4 +1,5 @@
 import { getSupabase } from '../shared/supabase';
+import { logActivity } from '../shared/activity-log';
 import { getTodaysHashtags, getIGAccessToken, searchHashtag, IGMedia } from '../lib/instagram';
 
 const SCOUT_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours between hashtag searches (4/day = ~8 API calls/day)
@@ -69,6 +70,12 @@ async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
 
   await supabase.from('curated_posts').insert(rows);
   console.log(`[scout] #${hashtag}: queued ${rows.length} new videos (top: ${toQueue[0].like_count?.toLocaleString()} likes, ${toQueue[0].comments_count || 0} comments, score: ${toQueue[0].engagementScore.toLocaleString()})`);
+  await logActivity('scout', 'discovered', {
+    hashtag,
+    queued: rows.length,
+    top_likes: toQueue[0].like_count,
+    top_score: toQueue[0].engagementScore,
+  });
   return { hashtag, queued: rows.length };
 }
 

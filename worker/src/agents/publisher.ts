@@ -3,6 +3,7 @@ import { uploadToYouTube } from '../lib/youtube';
 import { publishToInstagramReels, publishToFacebookReels } from '../lib/meta-reels';
 import { cleanup } from '../lib/ffmpeg';
 import { getSupabase } from '../shared/supabase';
+import { logActivity } from '../shared/activity-log';
 import { sendPostNotification } from '../lib/email';
 
 const MAX_DAILY_UPLOADS = 8;
@@ -121,6 +122,15 @@ export function startPublisher() {
         .eq('id', post.id);
 
       console.log(`[publisher] ✓ ${post.id} → posted`);
+      await logActivity('publisher', 'published', {
+        post_id: post.id,
+        title: post.title,
+        youtube_id: updates.youtube_video_id,
+        ig_reels_id: updates.ig_reels_id,
+        fb_reels_id: updates.fb_reels_id,
+        ig_error: updates._igError,
+        fb_error: updates._fbError,
+      });
 
       // Send email notification
       await sendPostNotification({
@@ -144,6 +154,7 @@ export function startPublisher() {
           failed_at_stage: 'publisher',
         })
         .eq('id', post.id);
+      await logActivity('publisher', 'error', { post_id: post.id, error: err.message });
       return 0;
     }
   }
