@@ -2,181 +2,290 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Video, Upload, CheckCircle, AlertCircle, Clock, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import type { Video as VideoType, VideoPost } from '@/lib/types';
+import {
+  Flame, MessageCircle, Share2, Bookmark, MapPin, Upload,
+  Sparkles, TrendingUp, Droplets, Music, Users, ChevronRight
+} from 'lucide-react';
+import type { User as FlowUser } from '@/lib/types';
 
-const statusColors: Record<string, string> = {
-  uploading: 'bg-flow-yellow/10 text-flow-yellow border-flow-yellow/20',
-  processing: 'bg-flow-magenta/10 text-flow-magenta border-flow-magenta/20',
-  stripping_audio: 'bg-flow-magenta/10 text-flow-magenta border-flow-magenta/20',
-  generating_captions: 'bg-flow-magenta/10 text-flow-magenta border-flow-magenta/20',
-  fetching_music: 'bg-flow-magenta/10 text-flow-magenta border-flow-magenta/20',
-  merging: 'bg-flow-magenta/10 text-flow-magenta border-flow-magenta/20',
-  transcoding: 'bg-flow-magenta/10 text-flow-magenta border-flow-magenta/20',
-  ready: 'bg-flow-green/10 text-flow-green border-flow-green/20',
-  posting: 'bg-flow-yellow/10 text-flow-yellow border-flow-yellow/20',
-  posted: 'bg-flow-green/10 text-flow-green border-flow-green/20',
-  failed: 'bg-flow-red/10 text-flow-red border-flow-red/20',
-};
+// Sample feed data — will be replaced with real posts from Supabase
+const SAMPLE_FEED = [
+  {
+    id: '1',
+    user: { name: 'Luna Spinner', toy: 'Poi', location: 'Austin, TX', color: '#FF00FF' },
+    caption: 'Sunset session at Zilker Park. This new antispin weave combo finally clicked after 3 weeks of practice!',
+    hashtags: ['#flowarts', '#poi', '#sunset', '#zilkerpark', '#antispin'],
+    likes: 347,
+    comments: 24,
+    timeAgo: '2m ago',
+    musicTrack: 'Liquid Stranger — Cosmic Awakening',
+  },
+  {
+    id: '2',
+    user: { name: 'Blaze Master', toy: 'Dragon Staff', location: 'Denver, CO', color: '#FFFF00' },
+    caption: 'Fire performance at Red Rocks last night. The crowd energy was unreal. Grateful for every moment on stage.',
+    hashtags: ['#dragonstaff', '#firearts', '#redrocks', '#performance'],
+    likes: 892,
+    comments: 67,
+    timeAgo: '15m ago',
+    musicTrack: 'Tipper — Dreamsters',
+  },
+  {
+    id: '3',
+    user: { name: 'Crystal Flow', toy: 'LED Hoop', location: 'Portland, OR', color: '#00FFFF' },
+    caption: 'New LED pattern on the SmartHoop Pro! These color transitions sync perfectly with the beat.',
+    hashtags: ['#hooping', '#ledhoop', '#portland', '#flowstate'],
+    likes: 156,
+    comments: 12,
+    timeAgo: '32m ago',
+    musicTrack: 'CloZee — Harmony',
+  },
+  {
+    id: '4',
+    user: { name: 'Neon Drift', toy: 'Levitation Wand', location: 'Miami, FL', color: '#FF3333' },
+    caption: 'Beach flow at midnight. The wand floats differently in the ocean breeze and I am HERE for it.',
+    hashtags: ['#leviwand', '#beachflow', '#miami', '#nightflow'],
+    likes: 203,
+    comments: 19,
+    timeAgo: '1h ago',
+    musicTrack: 'Emancipator — Soon It Will Be Cold Enough',
+  },
+  {
+    id: '5',
+    user: { name: 'Prism Paint', toy: 'Live Painter', location: 'Brooklyn, NY', color: '#9933FF' },
+    caption: 'Live painting at the Bushwick Collective last night. 4 hours, one canvas, and a lot of bass music. Prints available soon.',
+    hashtags: ['#livepainting', '#brooklyn', '#bushwick', '#artlife'],
+    likes: 511,
+    comments: 43,
+    timeAgo: '2h ago',
+    musicTrack: 'Odesza — A Moment Apart',
+  },
+  {
+    id: '6',
+    user: { name: 'VJ Fractal', toy: 'VJ', location: 'Los Angeles, CA', color: '#00FF00' },
+    caption: 'New projection mapping piece for Exchange LA. 4 projectors, TouchDesigner, and a lot of caffeine. The venue looked incredible.',
+    hashtags: ['#vjlife', '#projectionmapping', '#touchdesigner', '#exchangela'],
+    likes: 678,
+    comments: 55,
+    timeAgo: '3h ago',
+    musicTrack: 'Rezz — Edge',
+  },
+  {
+    id: '7',
+    user: { name: 'DJ Luminance', toy: 'DJ', location: 'Chicago, IL', color: '#FF8800' },
+    caption: 'Just dropped a new liquid DnB mix — 2 hours of pure vibes. Link in bio. Let me know your favorite track.',
+    hashtags: ['#djlife', '#liquiddrumnbass', '#chicago', '#newmix'],
+    likes: 234,
+    comments: 31,
+    timeAgo: '4h ago',
+    musicTrack: null,
+  },
+  {
+    id: '8',
+    user: { name: 'Silk Whips', toy: 'Whip', location: 'Nashville, TN', color: '#FF66B2' },
+    caption: 'First time cracking doubles at a festival. The sound the crowd made when both whips hit in sync... chills.',
+    hashtags: ['#whipcracking', '#flowarts', '#festival', '#doubles'],
+    likes: 189,
+    comments: 15,
+    timeAgo: '5h ago',
+    musicTrack: 'Bassnectar — Timestretch',
+  },
+];
+
+const TRENDING_TAGS = [
+  '#flowarts', '#fireperformance', '#poispinning', '#festivalseason',
+  '#liveart', '#vjlife', '#edm', '#raveculture',
+];
 
 export default function DashboardPage() {
   const supabase = createClient();
-  const [videos, setVideos] = useState<VideoType[]>([]);
-  const [posts, setPosts] = useState<Record<string, VideoPost[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<FlowUser | null>(null);
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const fetchData = async () => {
+    const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-
-      const { data: vids } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false });
-
-      if (vids) {
-        setVideos(vids as VideoType[]);
-        // Fetch posts for all videos
-        const videoIds = vids.map(v => v.id);
-        if (videoIds.length > 0) {
-          const { data: allPosts } = await supabase
-            .from('video_posts')
-            .select('*')
-            .in('video_id', videoIds);
-          if (allPosts) {
-            const grouped: Record<string, VideoPost[]> = {};
-            allPosts.forEach((p: VideoPost) => {
-              if (!grouped[p.video_id]) grouped[p.video_id] = [];
-              grouped[p.video_id].push(p);
-            });
-            setPosts(grouped);
-          }
-        }
-      }
-      setLoading(false);
+      const { data } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+      if (data) setUser(data as FlowUser);
     };
-
-    fetchData();
-
-    // Realtime subscription for live status updates
-    const channel = supabase
-      .channel('video-updates')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'videos' }, (payload) => {
-        setVideos(prev => prev.map(v => v.id === payload.new.id ? { ...v, ...payload.new } as VideoType : v));
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    getUser();
   }, []);
 
-  const stats = {
-    total: videos.length,
-    posted: videos.filter(v => v.status === 'posted').length,
-    processing: videos.filter(v => !['posted', 'failed', 'ready'].includes(v.status)).length,
-    failed: videos.filter(v => v.status === 'failed').length,
+  const toggleLike = (postId: string) => {
+    setLikedPosts(prev => {
+      const next = new Set(prev);
+      next.has(postId) ? next.delete(postId) : next.add(postId);
+      return next;
+    });
   };
 
-  return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-display font-bold text-2xl mb-1">Dashboard</h1>
-          <p className="text-flow-gray-400 text-sm">Manage your video uploads and distributions</p>
-        </div>
-        <Link href="/dashboard/upload" className="btn-primary text-sm">
-          <Upload className="w-4 h-4" /> Upload
-        </Link>
-      </div>
+  const toggleSave = (postId: string) => {
+    setSavedPosts(prev => {
+      const next = new Set(prev);
+      next.has(postId) ? next.delete(postId) : next.add(postId);
+      return next;
+    });
+  };
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Total videos', value: stats.total, icon: Video, color: 'text-flow-green' },
-          { label: 'Posted', value: stats.posted, icon: CheckCircle, color: 'text-flow-green' },
-          { label: 'Processing', value: stats.processing, icon: Clock, color: 'text-flow-magenta' },
-          { label: 'Failed', value: stats.failed, icon: AlertCircle, color: 'text-flow-red' },
-        ].map((s) => (
-          <div key={s.label} className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <s.icon className={`w-4 h-4 ${s.color}`} />
-              <span className="text-flow-gray-400 text-xs">{s.label}</span>
+  const userColor = user?.favorite_color || '#00FF00';
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      {/* Stories-style top bar */}
+      <div className="flex items-center gap-4 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+        {/* Your story / upload CTA */}
+        <Link href="/dashboard/upload" className="flex flex-col items-center gap-1 shrink-0">
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center border-2 border-dashed"
+            style={{ borderColor: userColor + '60' }}
+          >
+            <Upload className="w-6 h-6" style={{ color: userColor }} />
+          </div>
+          <span className="text-[10px] text-flow-gray-400">Your flow</span>
+        </Link>
+
+        {/* Other artists' "stories" */}
+        {SAMPLE_FEED.slice(0, 6).map((post) => (
+          <div key={post.id} className="flex flex-col items-center gap-1 shrink-0 cursor-pointer">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center font-display font-bold text-lg"
+              style={{
+                background: `linear-gradient(135deg, ${post.user.color}40, ${post.user.color}10)`,
+                border: `2px solid ${post.user.color}`,
+                color: post.user.color,
+              }}
+            >
+              {post.user.name[0]}
             </div>
-            <p className="font-display font-bold text-2xl">{s.value}</p>
+            <span className="text-[10px] text-flow-gray-400 max-w-[60px] truncate">{post.user.name.split(' ')[0]}</span>
           </div>
         ))}
       </div>
 
-      {/* Video list */}
-      {loading ? (
-        <div className="text-center py-20 text-flow-gray-400">Loading videos...</div>
-      ) : videos.length === 0 ? (
-        <div className="text-center py-20">
-          <Video className="w-12 h-12 text-flow-gray-600 mx-auto mb-4" />
-          <h2 className="font-display font-semibold text-lg mb-2">No videos yet</h2>
-          <p className="text-flow-gray-400 mb-6">Upload your first video to get started</p>
-          <Link href="/dashboard/upload" className="btn-primary">
-            <Upload className="w-4 h-4" /> Upload video
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {videos.map((video) => (
-            <div key={video.id} className="glass-card p-5 hover:border-flow-green/20 transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-display font-semibold truncate">{video.title}</h3>
-                    <span className={`status-badge border ${statusColors[video.status] || ''}`}>
-                      {video.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                  {video.description && (
-                    <p className="text-flow-gray-400 text-sm mb-3 line-clamp-1">{video.description}</p>
-                  )}
-                  {/* Platform badges */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {video.target_platforms.map((platform) => {
-                      const post = posts[video.id]?.find(p => p.platform === platform);
-                      return (
-                        <span
-                          key={platform}
-                          className={`status-badge border ${
-                            post?.status === 'posted'
-                              ? 'bg-flow-green/10 text-flow-green border-flow-green/20'
-                              : post?.status === 'failed'
-                              ? 'bg-flow-red/10 text-flow-red border-flow-red/20'
-                              : 'bg-flow-gray-800 text-flow-gray-400 border-flow-gray-700'
-                          }`}
-                        >
-                          {platform}
-                          {post?.platform_post_url && (
-                            <a href={post.platform_post_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  {/* Hashtags preview */}
-                  {video.hashtags.length > 0 && (
-                    <p className="text-flow-green/60 text-xs mt-2 truncate">
-                      {video.hashtags.slice(0, 5).map(h => `#${h}`).join(' ')}
-                      {video.hashtags.length > 5 && ` +${video.hashtags.length - 5} more`}
-                    </p>
-                  )}
+      {/* Trending tags */}
+      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
+        <TrendingUp className="w-4 h-4 text-flow-magenta shrink-0" />
+        {TRENDING_TAGS.map((tag) => (
+          <span key={tag} className="text-xs px-3 py-1 rounded-full bg-flow-gray-900 border border-flow-gray-800 text-flow-gray-300 whitespace-nowrap hover:border-flow-green/30 cursor-pointer transition-colors">
+            {tag}
+          </span>
+        ))}
+      </div>
+
+      {/* Feed */}
+      <div className="space-y-6">
+        {SAMPLE_FEED.map((post) => (
+          <div key={post.id} className="glass-card overflow-hidden">
+            {/* Post header */}
+            <div className="flex items-center gap-3 p-4 pb-3">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm shrink-0"
+                style={{
+                  backgroundColor: post.user.color + '20',
+                  color: post.user.color,
+                  border: `2px solid ${post.user.color}40`,
+                }}
+              >
+                {post.user.name[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">{post.user.name}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full border" style={{
+                    backgroundColor: post.user.color + '10',
+                    color: post.user.color,
+                    borderColor: post.user.color + '30',
+                  }}>
+                    {post.user.toy}
+                  </span>
                 </div>
-                <div className="text-right text-xs text-flow-gray-500 whitespace-nowrap">
-                  {new Date(video.created_at).toLocaleDateString()}
+                <div className="flex items-center gap-1.5 text-[10px] text-flow-gray-500">
+                  <MapPin className="w-2.5 h-2.5" /> {post.user.location} · {post.timeAgo}
                 </div>
               </div>
             </div>
-          ))}
+
+            {/* Video placeholder */}
+            <div className="aspect-[4/5] bg-gradient-to-br from-flow-gray-900 to-flow-gray-800 flex items-center justify-center relative">
+              <div className="text-center">
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-3 cursor-pointer hover:scale-105 transition-transform"
+                  style={{
+                    backgroundColor: post.user.color + '15',
+                    border: `2px solid ${post.user.color}40`,
+                  }}
+                >
+                  <div className="w-0 h-0 border-l-[14px] border-t-[9px] border-b-[9px] border-l-white border-t-transparent border-b-transparent ml-1" />
+                </div>
+                <p className="text-xs text-flow-gray-500">Tap to play</p>
+              </div>
+              {post.musicTrack && (
+                <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2">
+                  <Music className="w-3 h-3 text-flow-cyan shrink-0" />
+                  <span className="text-[10px] text-flow-gray-300 truncate">{post.musicTrack}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="px-4 pt-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-4">
+                  <button onClick={() => toggleLike(post.id)} className="flex items-center gap-1.5 group">
+                    <Flame className={`w-6 h-6 transition-colors ${likedPosts.has(post.id) ? 'text-flow-red fill-flow-red' : 'text-flow-gray-400 group-hover:text-flow-red'}`} />
+                  </button>
+                  <button className="flex items-center gap-1.5">
+                    <MessageCircle className="w-6 h-6 text-flow-gray-400 hover:text-white transition-colors" />
+                  </button>
+                  <button className="flex items-center gap-1.5">
+                    <Share2 className="w-5 h-5 text-flow-gray-400 hover:text-white transition-colors" />
+                  </button>
+                </div>
+                <button onClick={() => toggleSave(post.id)}>
+                  <Bookmark className={`w-6 h-6 transition-colors ${savedPosts.has(post.id) ? 'text-flow-yellow fill-flow-yellow' : 'text-flow-gray-400 hover:text-flow-yellow'}`} />
+                </button>
+              </div>
+
+              <p className="text-sm font-semibold mb-1">
+                {(likedPosts.has(post.id) ? post.likes + 1 : post.likes).toLocaleString()} fires
+              </p>
+
+              {/* Caption */}
+              <p className="text-sm text-flow-gray-200 mb-1.5">
+                <span className="font-semibold mr-1.5">{post.user.name}</span>
+                {post.caption}
+              </p>
+
+              {/* Hashtags */}
+              <p className="text-xs text-flow-cyan/70 mb-2">
+                {post.hashtags.join(' ')}
+              </p>
+
+              {/* Comments link */}
+              <button className="text-xs text-flow-gray-500 mb-3 hover:text-flow-gray-300 transition-colors">
+                View all {post.comments} comments
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* End of feed */}
+        <div className="text-center py-8">
+          <Sparkles className="w-6 h-6 text-flow-green mx-auto mb-2" />
+          <p className="text-sm text-flow-gray-400 mb-1">You&apos;re all caught up!</p>
+          <p className="text-xs text-flow-gray-600">
+            <span className="text-flow-cyan"><Droplets className="w-3 h-3 inline" /> Stay Hydrated!</span>
+            {' · '}
+            <span className="text-flow-green">P</span>
+            <span className="text-flow-magenta">L</span>
+            <span className="text-flow-cyan">U</span>
+            <span className="text-flow-yellow">R</span>
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }

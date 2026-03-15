@@ -253,7 +253,7 @@ export default function HomePage() {
             transition={{ delay: 0.4 }}
           >
             <p className="text-sm uppercase tracking-wider text-flow-gray-500 mb-6">
-              Your content reaches 8.5 billion+ users
+              Your content reaches 3,000,000,000+ users
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               {platforms.map((p) => (
@@ -688,7 +688,7 @@ export default function HomePage() {
             <h2 className="font-display font-black text-3xl md:text-5xl leading-tight tracking-tight mb-6">
               Tired of getting <span className="text-flow-red">a few hundred views?</span>
               <br />
-              <span className="text-flow-green text-glow-green">Imagine reaching 8.5 billion.</span>
+              <span className="text-flow-green text-glow-green">Imagine reaching 3,000,000,000.</span>
             </h2>
 
             <p className="text-lg text-flow-gray-200 max-w-3xl mx-auto mb-8 leading-relaxed">
@@ -718,7 +718,7 @@ export default function HomePage() {
               </div>
 
               <div className="bg-flow-green/5 rounded-xl border border-flow-green/20 p-4">
-                <p className="font-display font-black text-2xl md:text-3xl text-flow-green mb-1">8.5 Billion+ Users</p>
+                <p className="font-display font-black text-2xl md:text-3xl text-flow-green mb-1">3,000,000,000+ Users</p>
                 <p className="text-sm text-flow-gray-300">Total reach — your content hits them all with one upload</p>
               </div>
             </div>
