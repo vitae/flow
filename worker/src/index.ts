@@ -19,7 +19,17 @@ app.post('/process', async (req, res) => {
   }
 });
 
-app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/health', (_req, res) => res.json({
+  ok: true,
+  env: {
+    supabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    anthropic: !!process.env.ANTHROPIC_API_KEY,
+    googleClient: !!process.env.GOOGLE_CLIENT_ID,
+    youtubeApi: !!process.env.YOUTUBE_API_KEY,
+    workerSecret: !!process.env.RAILWAY_WORKER_SECRET,
+  }
+}));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Worker listening on port ${PORT}`));
