@@ -3,6 +3,7 @@ import { uploadToYouTube } from '../lib/youtube';
 import { publishToInstagramReels, publishToFacebookReels } from '../lib/meta-reels';
 import { cleanup } from '../lib/ffmpeg';
 import { getSupabase } from '../shared/supabase';
+import { sendPostNotification } from '../lib/email';
 
 const MAX_DAILY_UPLOADS = 24;
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour between uploads
@@ -103,6 +104,18 @@ export function startPublisher() {
         .eq('id', post.id);
 
       console.log(`[publisher] ✓ ${post.id} → posted`);
+
+      // Send email notification
+      await sendPostNotification({
+        title: post.title || 'Untitled',
+        igPermalink: post.ig_permalink,
+        igLikeCount: post.ig_like_count || 0,
+        youtubeVideoId: updates.youtube_video_id,
+        igReelsId: updates.ig_reels_id,
+        fbReelsId: updates.fb_reels_id,
+        totalPosted: dailyCount + 1,
+      });
+
       return 1;
     } catch (err: any) {
       console.error(`[publisher] ✗ ${post.id}:`, err.message);

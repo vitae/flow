@@ -45,7 +45,7 @@ export interface IGMedia {
   timestamp: string;
 }
 
-async function getIGAccessToken(): Promise<{ token: string; igUserId: string }> {
+export async function getIGAccessToken(): Promise<{ token: string; igUserId: string }> {
   const { data } = await getSupabase()
     .from('social_connections')
     .select('*')
@@ -57,7 +57,7 @@ async function getIGAccessToken(): Promise<{ token: string; igUserId: string }> 
   return { token: data.access_token, igUserId: data.platform_user_id };
 }
 
-async function searchHashtag(hashtag: string, token: string, igUserId: string): Promise<IGMedia[]> {
+export async function searchHashtag(hashtag: string, token: string, igUserId: string): Promise<IGMedia[]> {
   const proof = appsecretProof(token);
 
   const searchRes = await fetch(

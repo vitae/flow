@@ -1,5 +1,5 @@
 import express from 'express';
-import { runScout } from './agents/scout';
+import { runScout, startScout } from './agents/scout';
 import { downloaderAgent } from './agents/downloader';
 import { audioEngineerAgent } from './agents/audio-engineer';
 import { editorAgent } from './agents/editor';
@@ -65,6 +65,7 @@ app.get('/health', (_req, res) => res.json({
     igSession: !!process.env.INSTAGRAM_SESSION_ID,
     metaAppSecret: !!process.env.META_APP_SECRET,
     ytStudioCookies: !!process.env.YOUTUBE_STUDIO_COOKIES,
+    gmailAppPassword: !!process.env.GMAIL_APP_PASSWORD,
   }
 }));
 
@@ -72,6 +73,9 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Flow Agent Swarm v3 listening on port ${PORT}`);
   console.log('Starting all agents...');
+
+  // Start continuous scout (1 hashtag every 10s)
+  startScout();
 
   // Start all polling agents
   downloaderAgent.start();
