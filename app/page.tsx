@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import {
   Upload, Sparkles, Music, Hash, Share2, Zap, ArrowRight, Check,
@@ -8,6 +10,8 @@ import {
   MessageCircle, Calendar, Flame, Play, Star, Mic2, MapPin, ChevronRight,
   Paintbrush, Monitor, Droplets
 } from 'lucide-react';
+
+const CheckoutModal = dynamic(() => import('@/components/CheckoutModal'), { ssr: false });
 
 const platforms = [
   { name: 'YouTube', users: '2.7B', color: '#FF0000' },
@@ -38,8 +42,10 @@ const tiers = [
     checkClass: 'text-flow-green',
     borderClass: 'glass-card',
     btnClass: 'btn-secondary',
-    btnText: 'Start Free Trial',
-    paymentUrl: 'https://buy.stripe.com/cNi5kFacz1COax8fxCejK00',
+    btnText: 'Get Started',
+    priceId: 'price_1TBAskQQiXDm8D554DanP26L',
+    mode: 'subscription' as const,
+    accentColor: '#00FF00',
     highlight: 'Save 20+ hours/month',
     features: [
       '10 videos / month',
@@ -62,8 +68,10 @@ const tiers = [
     checkClass: 'text-flow-magenta',
     borderClass: 'glass-card-magenta border-flow-magenta/30',
     btnClass: 'btn-magenta',
-    btnText: 'Go Pro — 7 Days Free',
-    paymentUrl: 'https://buy.stripe.com/14A3cx5WjftEcFgdpuejK01',
+    btnText: 'Go Pro',
+    priceId: 'price_1TBAsmQQiXDm8D5583XHgKY8',
+    mode: 'subscription' as const,
+    accentColor: '#FF00FF',
     highlight: 'Everything in Starter, plus:',
     features: [
       '50 videos / month',
@@ -89,8 +97,10 @@ const tiers = [
     checkClass: 'text-flow-yellow',
     borderClass: 'glass-card border-flow-yellow/30',
     btnClass: 'btn-primary',
-    btnText: 'Go Unlimited — 7 Days Free',
-    paymentUrl: 'https://buy.stripe.com/28EcN70BZ3KW7kW4SYejK02',
+    btnText: 'Go Unlimited',
+    priceId: 'price_1TBAsnQQiXDm8D55m34bfWWX',
+    mode: 'subscription' as const,
+    accentColor: '#FFFF00',
     highlight: 'Everything in Pro, plus:',
     features: [
       'Unlimited videos',
@@ -112,6 +122,14 @@ const tiers = [
 ];
 
 export default function HomePage() {
+  const [checkout, setCheckout] = useState<{
+    priceId: string;
+    mode: 'subscription' | 'payment';
+    planName: string;
+    planPrice: string;
+    accentColor: string;
+  } | null>(null);
+
   return (
     <main className="min-h-screen">
       {/* Nav */}
@@ -734,13 +752,19 @@ export default function HomePage() {
               If our app isn&apos;t helpful — full refund. No questions asked.
             </p>
 
-            <a
-              href="https://buy.stripe.com/7sY00lfwTftEfRs2KQejK03"
-              className="inline-flex items-center gap-3 px-10 py-4 rounded-xl font-display font-bold text-lg bg-flow-cyan text-black hover:bg-flow-cyan/90 transition-all shadow-lg shadow-flow-cyan/20"
+            <button
+              onClick={() => setCheckout({
+                priceId: 'price_1TBAsnQQiXDm8D55pjw0lJxH',
+                mode: 'payment',
+                planName: 'Alpha Tester',
+                planPrice: '$5',
+                accentColor: '#00FFFF',
+              })}
+              className="inline-flex items-center gap-3 px-10 py-4 rounded-xl font-display font-bold text-lg bg-flow-cyan text-black hover:bg-flow-cyan/90 transition-all shadow-lg shadow-flow-cyan/20 cursor-pointer"
             >
               <Rocket className="w-5 h-5" />
               Join Alpha — $5
-            </a>
+            </button>
 
             <p className="text-xs text-flow-gray-500 mt-4">
               One-time payment · Full platform access · 100% money-back guarantee
@@ -799,9 +823,18 @@ export default function HomePage() {
                   ))}
                 </ul>
 
-                <a href={tier.paymentUrl} className={`${tier.btnClass} w-full text-center`}>
+                <button
+                  onClick={() => setCheckout({
+                    priceId: tier.priceId,
+                    mode: tier.mode,
+                    planName: tier.name,
+                    planPrice: tier.price,
+                    accentColor: tier.accentColor,
+                  })}
+                  className={`${tier.btnClass} w-full text-center cursor-pointer`}
+                >
                   {tier.btnText}
-                </a>
+                </button>
               </motion.div>
             ))}
           </div>
@@ -826,12 +859,18 @@ export default function HomePage() {
               <div className="text-center shrink-0">
                 <p className="text-4xl font-display font-black text-flow-cyan mb-1">$5</p>
                 <p className="text-xs text-flow-gray-500 mb-3">one-time</p>
-                <a
-                  href="https://buy.stripe.com/7sY00lfwTftEfRs2KQejK03"
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm bg-flow-cyan/10 text-flow-cyan border border-flow-cyan/20 hover:bg-flow-cyan/20 transition-all"
+                <button
+                  onClick={() => setCheckout({
+                    priceId: 'price_1TBAsnQQiXDm8D55pjw0lJxH',
+                    mode: 'payment',
+                    planName: 'Single Video Upload',
+                    planPrice: '$5',
+                    accentColor: '#00FFFF',
+                  })}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm bg-flow-cyan/10 text-flow-cyan border border-flow-cyan/20 hover:bg-flow-cyan/20 transition-all cursor-pointer"
                 >
                   Upload Now
-                </a>
+                </button>
               </div>
             </div>
           </motion.div>
@@ -909,6 +948,18 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* Embedded Stripe Checkout Modal */}
+      {checkout && (
+        <CheckoutModal
+          priceId={checkout.priceId}
+          mode={checkout.mode}
+          planName={checkout.planName}
+          planPrice={checkout.planPrice}
+          accentColor={checkout.accentColor}
+          onClose={() => setCheckout(null)}
+        />
+      )}
     </main>
   );
 }
