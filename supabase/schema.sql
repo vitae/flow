@@ -85,7 +85,7 @@ create index idx_videos_status on public.videos(status);
 create table if not exists public.social_connections (
   id                  uuid default uuid_generate_v4() primary key,
   user_id             uuid references public.users(id) on delete cascade not null,
-  platform            text not null check (platform in ('youtube', 'instagram', 'facebook', 'twitter')),
+  platform            text not null check (platform in ('youtube', 'instagram', 'facebook', 'twitter', 'threads')),
   platform_user_id    text not null,
   platform_username   text,
   access_token        text not null,           -- encrypted at rest via Supabase Vault
@@ -108,7 +108,7 @@ create policy "Users can manage own connections" on public.social_connections fo
 create table if not exists public.video_posts (
   id                  uuid default uuid_generate_v4() primary key,
   video_id            uuid references public.videos(id) on delete cascade not null,
-  platform            text not null check (platform in ('youtube', 'instagram', 'facebook', 'twitter')),
+  platform            text not null check (platform in ('youtube', 'instagram', 'facebook', 'twitter', 'threads')),
   platform_post_id    text,
   platform_post_url   text,
   status              text default 'queued' check (status in ('queued', 'uploading', 'processing', 'posted', 'failed')),
@@ -131,7 +131,7 @@ create table if not exists public.video_jobs (
     'strip_audio', 'generate_captions', 'fetch_music', 'merge_audio', 'transcode', 'post'
   )),
   status          text default 'queued' check (status in ('queued', 'processing', 'completed', 'failed')),
-  platform        text check (platform in ('youtube', 'instagram', 'facebook', 'twitter')),
+  platform        text check (platform in ('youtube', 'instagram', 'facebook', 'twitter', 'threads')),
   progress        integer default 0,
   result_data     jsonb,
   error_message   text,

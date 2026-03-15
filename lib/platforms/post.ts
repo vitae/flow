@@ -296,6 +296,71 @@ export async function postToTwitter(
   };
 }
 
+// ── Threads Video Upload ──────────────────────────────────────────────────
+export async function postToThreads(
+  connection: SocialConnection,
+  videoUrl: string,
+  text: string,
+  hashtags: string[]
+) {
+  const token = await getValidToken(connection);
+  const userId = connection.platform_user_id;
+  const hashtagStr = hashtags.slice(0, 10).map(h => `#${h}`).join(' ');
+  const caption = `${text}\n\n${hashtagStr}`.slice(0, 500);
+
+  // 1. Create media container
+  const containerRes = await fetch(
+    `https://graph.threads.net/v1.0/${userId}/threads`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        media_type: 'VIDEO',
+        video_url: videoUrl,
+        text: caption,
+        access_token: token,
+      }),
+    }
+  );
+  const container = await containerRes.json();
+  if (container.error) throw new Error(container.error.message);
+
+  // 2. Wait for processing (poll status)
+  let status = 'IN_PROGRESS';
+  let attempts = 0;
+  while (status === 'IN_PROGRESS' && attempts < 30) {
+    await new Promise(r => setTimeout(r, 5000));
+    const statusRes = await fetch(
+      `https://graph.threads.net/v1.0/${container.id}?fields=status&access_token=${token}`
+    );
+    const statusData = await statusRes.json();
+    status = statusData.status;
+    attempts++;
+  }
+
+  if (status !== 'FINISHED') throw new Error(`Threads processing failed: ${status}`);
+
+  // 3. Publish
+  const publishRes = await fetch(
+    `https://graph.threads.net/v1.0/${userId}/threads_publish`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creation_id: container.id,
+        access_token: token,
+      }),
+    }
+  );
+  const published = await publishRes.json();
+  if (published.error) throw new Error(published.error.message);
+
+  return {
+    platform_post_id: published.id,
+    platform_post_url: `https://threads.net/post/${published.id}`,
+  };
+}
+
 // ── Dispatch to correct platform ───────────────────────────────────────────
 export async function postToPlatform(
   platform: Platform,
@@ -314,6 +379,8 @@ export async function postToPlatform(
       return postToFacebook(connection, videoUrl, title, description, hashtags);
     case 'twitter':
       return postToTwitter(connection, videoUrl, title, hashtags);
+    case 'threads':
+      return postToThreads(connection, videoUrl, `${title}\n\n${description}`, hashtags);
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }

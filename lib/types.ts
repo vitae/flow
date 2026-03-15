@@ -13,7 +13,7 @@ export type VideoStatus =
   | 'posted'
   | 'failed';
 
-export type Platform = 'youtube' | 'instagram' | 'facebook' | 'twitter';
+export type Platform = 'youtube' | 'instagram' | 'facebook' | 'twitter' | 'threads';
 
 export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
 

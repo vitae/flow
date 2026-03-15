@@ -11,6 +11,7 @@ const platformConfig: Record<Platform, { label: string; color: string; bgColor: 
   instagram: { label: 'Instagram', color: 'text-pink-500', bgColor: 'bg-pink-500/10 border-pink-500/20' },
   facebook: { label: 'Facebook', color: 'text-blue-500', bgColor: 'bg-blue-500/10 border-blue-500/20' },
   twitter: { label: 'X / Twitter', color: 'text-gray-300', bgColor: 'bg-gray-500/10 border-gray-500/20' },
+  threads: { label: 'Threads', color: 'text-purple-400', bgColor: 'bg-purple-500/10 border-purple-500/20' },
 };
 
 export default function ConnectionsPage() {
@@ -80,7 +81,7 @@ export default function ConnectionsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {(Object.keys(platformConfig) as Platform[]).map((platform) => {
+          {(Object.keys(platformConfig) as Platform[]).filter(p => p !== 'twitter').map((platform) => {
             const conn = getConnection(platform);
             const config = platformConfig[platform];
             const isConnecting = connecting === platform;
@@ -138,9 +139,9 @@ export default function ConnectionsPage() {
                     Requires a Business or Creator Instagram account linked to a Facebook Page
                   </p>
                 )}
-                {!conn && platform === 'twitter' && (
+                {!conn && platform === 'threads' && (
                   <p className="mt-3 text-xs text-flow-gray-500 border-t border-flow-gray-800 pt-3">
-                    Requires X API Pro access ($100/mo from X) for video upload capability
+                    Posts videos directly to your Threads profile
                   </p>
                 )}
               </div>
@@ -156,7 +157,7 @@ export default function ConnectionsPage() {
           <li>• YouTube: uses your Google account — just authorize and go</li>
           <li>• Instagram: must be a Business/Creator account with a linked Facebook Page</li>
           <li>• Facebook: posts to your Page, not personal profile</li>
-          <li>• X/Twitter: requires Pro API access from developer.x.com</li>
+          <li>• Threads: uses your Threads account via Meta — authorize and post</li>
         </ul>
       </div>
     </div>
