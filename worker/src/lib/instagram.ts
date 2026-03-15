@@ -1,29 +1,23 @@
 import crypto from 'crypto';
 import { getSupabase } from '../shared/supabase';
 
-// Mega-viral hashtags (100M+ posts each) — these surface content with real engagement
+// Exactly 30 hashtags — the IG API allows 30 unique hashtags per 7-day rolling window.
+// We cycle through all 30 over the week: 4/day for 7 days = 28, then 2 repeat on day 8.
 const VIRAL_HASHTAGS = [
-  // Mega viral (billions of posts, highest chance of 10k+ like content)
-  'viral', 'viralvideo', 'viralreels', 'trending', 'trendingreels',
-  'explore', 'explorepage', 'fyp', 'foryou', 'reels',
-  'reelsviral', 'reelsinstagram', 'instagood', 'instadaily',
-  // Massive entertainment
-  'funny', 'funnyvideos', 'comedy', 'memes', 'lol',
-  'satisfying', 'oddlysatisfying', 'asmr', 'amazing', 'wow',
-  // Skills & talent (high engagement)
-  'talent', 'skills', 'nextlevel', 'mindblowing', 'insane',
-  'unbelievable', 'incredible', 'epic', 'crazyvideo',
-  // Dance & music (massive audiences)
-  'dance', 'dancing', 'dancer', 'choreography', 'dancetrending',
-  'edm', 'rave', 'festival', 'dj', 'musicfestival',
-  // Sports & action (high virality)
-  'sports', 'extreme', 'parkour', 'skateboarding', 'surfing',
-  'snowboarding', 'bmx', 'martialarts', 'fitness', 'workout',
-  // Lifestyle viral
-  'motivation', 'inspiration', 'lifehack', 'howto', 'tutorial',
-  'beautiful', 'nature', 'travel', 'adventure',
+  // Mega viral (highest engagement)
+  'viral', 'viralvideo', 'trending', 'explorepage', 'reels',
+  'fyp', 'foryou', 'instagood', 'viralreels', 'trendingreels',
+  // Entertainment
+  'funny', 'funnyvideos', 'satisfying', 'oddlysatisfying', 'amazing',
+  // Skills & talent
+  'talent', 'skills', 'nextlevel', 'mindblowing', 'incredible',
+  // Dance & music
+  'dance', 'dancer', 'edm', 'rave', 'festival',
+  // Sports & action
+  'parkour', 'skateboarding', 'surfing', 'fitness', 'extreme',
 ];
-const HASHTAGS_PER_DAY = 4; // 4 hashtags/day × 2 calls each = 8 API calls/day (well under 30/week limit)
+// 4 hashtags/day × 7 days = 28 unique per week (under the 30 limit)
+const HASHTAGS_PER_DAY = 4;
 
 function appsecretProof(token: string): string {
   return crypto.createHmac('sha256', process.env.META_APP_SECRET!).update(token).digest('hex');
