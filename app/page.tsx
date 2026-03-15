@@ -29,6 +29,8 @@ const flowCategories = [
   { name: 'Levitation', emoji: '🪄', count: '890 artists' },
   { name: 'Contact', emoji: '🔮', count: '1.5K artists' },
   { name: 'Dragon Staff', emoji: '🐉', count: '720 artists' },
+  { name: 'Juggling', emoji: '🤹', count: '2.1K artists' },
+  { name: 'Whip', emoji: '💥', count: '640 artists' },
 ];
 
 const tiers = [
