@@ -176,11 +176,12 @@ export function startMusicAdder() {
 
   async function tick(): Promise<number> {
     // Find posted videos that don't have music added yet
+    // Check for null OR "silent" (legacy value from before music-adder existed)
     const { data: posts } = await supabase
       .from('curated_posts')
       .select('*')
       .eq('status', 'posted')
-      .is('youtube_audio_title', null)
+      .or('youtube_audio_title.is.null,youtube_audio_title.eq.silent')
       .not('youtube_video_id', 'is', null)
       .order('created_at', { ascending: true })
       .limit(1);
