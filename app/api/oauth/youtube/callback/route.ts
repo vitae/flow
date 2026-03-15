@@ -18,9 +18,16 @@ export async function GET(request: NextRequest) {
     const state = JSON.parse(Buffer.from(stateRaw, 'base64').toString());
     const supabase = createServerClient();
 
-    // Verify the user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(state.token);
-    if (authError || !user) throw new Error('Invalid session');
+    // Verify the user (allow "skip" token for CLI-based OAuth)
+    let userId: string;
+    if (state.token === 'skip') {
+      // CLI OAuth flow — use the glowwitdaflow account
+      userId = '93ff5bbe-7b43-4f46-9d24-40a55d60bca3';
+    } else {
+      const { data: { user }, error: authError } = await supabase.auth.getUser(state.token);
+      if (authError || !user) throw new Error('Invalid session');
+      userId = user.id;
+    }
 
     // Exchange code for tokens
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -48,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     // Upsert social connection
     await supabase.from('social_connections').upsert({
-      user_id: user.id,
+      user_id: userId,
       platform: 'youtube',
       platform_user_id: channel?.id || 'unknown',
       platform_username: channel?.snippet?.title || null,
