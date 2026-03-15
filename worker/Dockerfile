@@ -7,6 +7,10 @@ RUN apt-get update && apt-get install -y ffmpeg python3 pip curl && \
 WORKDIR /app
 COPY worker/package*.json ./
 RUN npm install
+
+# Install Playwright Chromium + its OS dependencies
+RUN npx playwright install chromium --with-deps
+
 COPY worker/ .
 RUN npm run build
 

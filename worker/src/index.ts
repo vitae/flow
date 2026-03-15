@@ -5,6 +5,7 @@ import { audioEngineerAgent } from './agents/audio-engineer';
 import { editorAgent } from './agents/editor';
 import { copywriterAgent } from './agents/copywriter';
 import { startPublisher } from './agents/publisher';
+import { startMusicAdder } from './agents/music-adder';
 
 const app = express();
 app.use(express.json());
@@ -53,7 +54,7 @@ app.post('/process', auth, async (_req, res) => {
 // Health check
 app.get('/health', (_req, res) => res.json({
   ok: true,
-  agents: ['scout', 'downloader', 'audio_engineer', 'editor', 'copywriter', 'publisher'],
+  agents: ['scout', 'downloader', 'audio_engineer', 'editor', 'copywriter', 'publisher', 'music_adder'],
   env: {
     supabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -63,6 +64,7 @@ app.get('/health', (_req, res) => res.json({
     workerSecret: !!process.env.RAILWAY_WORKER_SECRET,
     igSession: !!process.env.INSTAGRAM_SESSION_ID,
     metaAppSecret: !!process.env.META_APP_SECRET,
+    ytStudioCookies: !!process.env.YOUTUBE_STUDIO_COOKIES,
   }
 }));
 
@@ -77,6 +79,7 @@ app.listen(PORT, () => {
   editorAgent.start();
   copywriterAgent.start();
   startPublisher();
+  startMusicAdder();
 
   console.log('All agents running.');
 });

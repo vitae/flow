@@ -19,7 +19,7 @@ export interface CuratedPost {
   created_at: string;
 }
 
-export type AgentName = 'scout' | 'downloader' | 'audio_engineer' | 'editor' | 'copywriter' | 'publisher';
+export type AgentName = 'scout' | 'downloader' | 'audio_engineer' | 'editor' | 'copywriter' | 'publisher' | 'music_adder';
 
 export interface AgentConfig {
   name: AgentName;
