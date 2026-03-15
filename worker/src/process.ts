@@ -83,7 +83,7 @@ export async function processAllPending() {
       const finalPath = await mergeAudioVideo(silentPath, audioPath);
 
       // 5. Generate metadata
-      const metadata = await generateMetadata(post.ig_username);
+      const metadata = await generateMetadata(post.ig_username, post.ig_permalink);
 
       // 6. Upload to YouTube
       await supabase.from('curated_posts').update({ status: 'uploading' }).eq('id', post.id);

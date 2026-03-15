@@ -40,10 +40,10 @@ export async function GET(request: Request) {
   // 4. Insert into curated_posts
   const rows = toProcess.map(v => ({
     ig_media_id: v.id,
-    ig_username: v.username,
+    ig_username: v.permalink.split('/')[3] || 'unknown',
     ig_permalink: v.permalink,
     ig_like_count: v.like_count || 0,
-    ig_media_url: v.media_url,
+    ig_media_url: null,
     status: 'pending' as const,
     hashtags: [],
   }));

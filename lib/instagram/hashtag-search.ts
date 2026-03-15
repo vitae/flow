@@ -17,11 +17,9 @@ const HASHTAGS_PER_DAY = 5;
 export interface IGMedia {
   id: string;
   media_type: string;
-  media_url: string;
   permalink: string;
   like_count: number;
-  comments_count: number;
-  username: string;
+  caption: string;
   timestamp: string;
 }
 
@@ -58,11 +56,15 @@ async function searchHashtag(hashtag: string, token: string, igUserId: string): 
   if (!searchData.data?.[0]?.id) return [];
   const hashtagId = searchData.data[0].id;
 
-  // 2. Get top media for this hashtag
+  // 2. Get recent media (has more videos than top_media which favors images)
   const mediaRes = await fetch(
-    `https://graph.facebook.com/v21.0/${hashtagId}/top_media?user_id=${igUserId}&fields=id,media_type,media_url,permalink,like_count,comments_count,username,timestamp&access_token=${token}&appsecret_proof=${appsecretProof(token)}`
+    `https://graph.facebook.com/v21.0/${hashtagId}/recent_media?user_id=${igUserId}&fields=id,media_type,permalink,like_count,caption,timestamp&access_token=${token}&appsecret_proof=${appsecretProof(token)}`
   );
   const mediaData = await mediaRes.json();
+  if (mediaData.error) {
+    console.error(`IG media fetch error for #${hashtag}:`, mediaData.error);
+    return [];
+  }
   return (mediaData.data || []).filter((m: IGMedia) => m.media_type === 'VIDEO');
 }
 
