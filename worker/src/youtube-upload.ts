@@ -4,12 +4,15 @@ import { execSync } from 'child_process';
 import { createClient } from '@supabase/supabase-js';
 import { ensureTmpDir } from './ffmpeg';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 async function getYouTubeAuth() {
+  const supabase = getSupabase();
   const { data: connection } = await supabase
     .from('social_connections')
     .select('*')
@@ -32,7 +35,7 @@ async function getYouTubeAuth() {
   // Auto-refresh if needed
   const { credentials } = await oauth2Client.refreshAccessToken();
   if (credentials.access_token !== connection.access_token) {
-    await supabase.from('social_connections').update({
+    await getSupabase().from('social_connections').update({
       access_token: credentials.access_token,
       token_expires_at: credentials.expiry_date
         ? new Date(credentials.expiry_date).toISOString()

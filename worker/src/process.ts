@@ -3,12 +3,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import { downloadFile, stripAudio, mergeAudioVideo, cleanup } from './ffmpeg';
 import { uploadToYouTube, downloadYTAudio } from './youtube-upload';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY!;
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 async function findTrendingAudio(): Promise<{ videoId: string; title: string }> {
   const queries = ['trending shorts music 2026', 'viral edm dance shorts', 'rave music shorts'];
@@ -23,7 +23,7 @@ async function findTrendingAudio(): Promise<{ videoId: string; title: string }> 
       videoDuration: 'short',
       order: 'viewCount',
       maxResults: '5',
-      key: YOUTUBE_API_KEY,
+      key: process.env.YOUTUBE_API_KEY!,
     })
   );
   const data = await res.json();
@@ -33,6 +33,7 @@ async function findTrendingAudio(): Promise<{ videoId: string; title: string }> 
 }
 
 async function generateMetadata(igUsername: string, igCaption?: string) {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 500,
@@ -51,9 +52,9 @@ Return ONLY JSON: {"title":"<catchy title under 100 chars with emoji>","descript
 }
 
 export async function processAllPending() {
+  const supabase = getSupabase();
   console.log('Processing pending posts...');
-  console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING');
-  console.log('Service Role Key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING');
+  console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL || 'MISSING');
 
   const { data: pending, error: queryError } = await supabase
     .from('curated_posts')
@@ -120,6 +121,7 @@ export async function processAllPending() {
       processed++;
 
     } catch (err: any) {
+      console.error('Processing error for post', post.id, ':', err.message);
       await supabase.from('curated_posts').update({
         status: 'failed',
         error_message: err.message,
