@@ -16,9 +16,12 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
     "@stripe/stripe-js": "^4.9.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.0",
+    "@types/three": "^0.183.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.36.0",
@@ -30,6 +33,7 @@
     "sonner": "^1.7.0",
     "stripe": "^17.4.0",
     "tailwind-merge": "^2.6.0",
+    "three": "^0.183.2",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
