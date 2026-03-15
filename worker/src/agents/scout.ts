@@ -1,7 +1,7 @@
 import { getSupabase } from '../shared/supabase';
 import { getTodaysHashtags, getIGAccessToken, searchHashtag, IGMedia } from '../lib/instagram';
 
-const SCOUT_INTERVAL_MS = 10_000; // 10 seconds between hashtag searches
+const SCOUT_INTERVAL_MS = 25 * 60 * 1000; // 25 minutes between hashtag searches
 const MIN_LIKES_FOR_VIRAL = 10_000;
 const MIN_LIKES_FALLBACK = 5_000;
 
