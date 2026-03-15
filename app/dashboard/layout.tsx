@@ -6,15 +6,26 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   LayoutDashboard, Upload, Link2, Settings, LogOut, Menu, X,
-  Video, ChevronRight, Sparkles, Rocket, MessageCircle, ChevronDown, ChevronUp
+  Video, ChevronRight, Sparkles, Rocket, MessageCircle, ChevronDown, ChevronUp,
+  Home, Search, PlusCircle, User, Compass
 } from 'lucide-react';
 import type { User as FlowUser } from '@/lib/types';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+const sideNavItems = [
+  { href: '/dashboard', label: 'Feed', icon: Home },
+  { href: '/dashboard/discover', label: 'Discover', icon: Compass },
   { href: '/dashboard/upload', label: 'Upload', icon: Upload },
   { href: '/dashboard/connections', label: 'Connections', icon: Link2 },
+  { href: '/dashboard/messages', label: 'Messages', icon: MessageCircle },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+];
+
+const bottomNavItems = [
+  { href: '/dashboard', label: 'Home', icon: Home },
+  { href: '/dashboard/discover', label: 'Discover', icon: Compass },
+  { href: '/dashboard/upload', label: 'Upload', icon: PlusCircle, isUpload: true },
+  { href: '/dashboard/messages', label: 'Messages', icon: MessageCircle },
+  { href: '/dashboard/settings', label: 'Profile', icon: User, isProfile: true },
 ];
 
 const AI_PROMPTS = [
@@ -92,7 +103,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     getUser();
   }, []);
 
-  // Rotate AI prompts
   useEffect(() => {
     if (aiView !== 'prompts') return;
     const interval = setInterval(() => {
@@ -121,7 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
+      {/* Desktop Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50 w-72 bg-flow-dark border-r border-flow-green/10
         transform transition-transform duration-200 ease-in-out
@@ -153,7 +163,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Nav */}
           <nav className="flex-1 px-3 space-y-1">
-            {navItems.map((item) => {
+            {sideNavItems.map((item) => {
               const active = pathname === item.href;
               return (
                 <Link
@@ -191,7 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
 
             {aiExpanded && (
-              <div className="mt-2 rounded-lg bg-flow-gray-900/80 border border-flow-gray-700 p-3 space-y-3 animate-in slide-in-from-bottom-2 duration-200">
+              <div className="mt-2 rounded-lg bg-flow-gray-900/80 border border-flow-gray-700 p-3 space-y-3">
                 {aiView === 'prompts' && (
                   <>
                     <div className="flex items-start gap-2">
@@ -233,29 +243,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                     <div className="flex gap-2">
                       {coachStep > 0 && (
-                        <button
-                          onClick={() => setCoachStep(prev => prev - 1)}
-                          className="flex-1 text-xs py-1.5 rounded-lg border border-flow-gray-700 text-flow-gray-400 hover:text-white transition-colors"
-                        >
-                          Back
-                        </button>
+                        <button onClick={() => setCoachStep(prev => prev - 1)} className="flex-1 text-xs py-1.5 rounded-lg border border-flow-gray-700 text-flow-gray-400 hover:text-white transition-colors">Back</button>
                       )}
                       <button
-                        onClick={() => {
-                          if (coachStep < COACH_QUESTIONS.length - 1) {
-                            setCoachStep(prev => prev + 1);
-                          } else {
-                            setAiView('prompts');
-                          }
-                        }}
+                        onClick={() => coachStep < COACH_QUESTIONS.length - 1 ? setCoachStep(prev => prev + 1) : setAiView('prompts')}
                         className="flex-1 text-xs py-1.5 rounded-lg bg-flow-magenta/10 text-flow-magenta border border-flow-magenta/20 hover:bg-flow-magenta/20 transition-all"
                       >
                         {coachStep < COACH_QUESTIONS.length - 1 ? 'Next' : 'Done'}
                       </button>
                     </div>
-                    <button onClick={() => setAiView('prompts')} className="text-[10px] text-flow-gray-500 hover:text-flow-gray-300 w-full text-center">
-                      Back to menu
-                    </button>
+                    <button onClick={() => setAiView('prompts')} className="text-[10px] text-flow-gray-500 hover:text-flow-gray-300 w-full text-center">Back to menu</button>
                   </>
                 )}
 
@@ -273,15 +270,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </div>
                       ))}
                     </div>
-                    <Link
-                      href="/dashboard/upload"
-                      className="block w-full text-xs font-medium py-2 rounded-lg bg-flow-green/10 text-flow-green border border-flow-green/20 hover:bg-flow-green/20 transition-all text-center"
-                    >
-                      Start creating content
-                    </Link>
-                    <button onClick={() => setAiView('prompts')} className="text-[10px] text-flow-gray-500 hover:text-flow-gray-300 w-full text-center">
-                      Back to menu
-                    </button>
+                    <Link href="/dashboard/upload" className="block w-full text-xs font-medium py-2 rounded-lg bg-flow-green/10 text-flow-green border border-flow-green/20 hover:bg-flow-green/20 transition-all text-center">Start creating content</Link>
+                    <button onClick={() => setAiView('prompts')} className="text-[10px] text-flow-gray-500 hover:text-flow-gray-300 w-full text-center">Back to menu</button>
                   </>
                 )}
 
@@ -291,9 +281,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <Rocket className="w-3.5 h-3.5 text-flow-yellow" />
                       <span className="text-xs font-semibold text-flow-yellow">{BOOST_INFO.title}</span>
                     </div>
-                    <p className="text-xs text-flow-gray-300 leading-relaxed">
-                      {BOOST_INFO.description}
-                    </p>
+                    <p className="text-xs text-flow-gray-300 leading-relaxed">{BOOST_INFO.description}</p>
                     <div className="space-y-1.5">
                       {BOOST_INFO.steps.map((step, i) => (
                         <div key={i} className="flex items-center gap-2">
@@ -304,15 +292,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </div>
                       ))}
                     </div>
-                    <Link
-                      href="/dashboard/upload"
-                      className="block w-full text-xs font-medium py-2 rounded-lg bg-flow-yellow/10 text-flow-yellow border border-flow-yellow/20 hover:bg-flow-yellow/20 transition-all text-center"
-                    >
-                      Upload & Boost Now
-                    </Link>
-                    <button onClick={() => setAiView('prompts')} className="text-[10px] text-flow-gray-500 hover:text-flow-gray-300 w-full text-center">
-                      Back to menu
-                    </button>
+                    <Link href="/dashboard/upload" className="block w-full text-xs font-medium py-2 rounded-lg bg-flow-yellow/10 text-flow-yellow border border-flow-yellow/20 hover:bg-flow-yellow/20 transition-all text-center">Upload & Boost Now</Link>
+                    <button onClick={() => setAiView('prompts')} className="text-[10px] text-flow-gray-500 hover:text-flow-gray-300 w-full text-center">Back to menu</button>
                   </>
                 )}
               </div>
@@ -341,46 +322,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
               </div>
 
-              {/* Flow toys badges */}
               {user?.flow_toys && user.flow_toys.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-2">
                   {user.flow_toys.slice(0, 3).map((toy) => (
-                    <span
-                      key={toy}
-                      className="text-[9px] px-1.5 py-0.5 rounded-full border"
-                      style={{
-                        backgroundColor: userColor + '10',
-                        color: userColor,
-                        borderColor: userColor + '30',
-                      }}
-                    >
-                      {toy}
-                    </span>
+                    <span key={toy} className="text-[9px] px-1.5 py-0.5 rounded-full border" style={{ backgroundColor: userColor + '10', color: userColor, borderColor: userColor + '30' }}>{toy}</span>
                   ))}
                   {user.flow_toys.length > 3 && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-flow-gray-800 text-flow-gray-500">
-                      +{user.flow_toys.length - 3}
-                    </span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-flow-gray-800 text-flow-gray-500">+{user.flow_toys.length - 3}</span>
                   )}
                 </div>
               )}
 
-              {/* Bio preview */}
               {user?.bio && (
-                <p className="text-[10px] text-flow-gray-500 line-clamp-2 leading-relaxed mb-2">
-                  {user.bio}
-                </p>
+                <p className="text-[10px] text-flow-gray-500 line-clamp-2 leading-relaxed mb-2">{user.bio}</p>
               )}
 
-              {/* Location */}
-              {user?.location && (
-                <p className="text-[10px] text-flow-gray-600 truncate">
-                  {user.location}
-                </p>
-              )}
-
-              {/* Subscription badge */}
-              <div className="mt-2 flex items-center justify-between">
+              <div className="flex items-center justify-between">
                 <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
                   user?.subscription_tier === 'pro'
                     ? 'bg-flow-magenta/10 text-flow-magenta border border-flow-magenta/20'
@@ -388,9 +345,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 }`}>
                   {user?.subscription_tier === 'pro' ? 'PRO' : 'FREE'}
                 </span>
-                <span className="text-[9px] text-flow-gray-600 group-hover:text-flow-green transition-colors">
-                  Edit profile →
-                </span>
+                <span className="text-[9px] text-flow-gray-600 group-hover:text-flow-green transition-colors">Edit profile →</span>
               </div>
             </Link>
 
@@ -404,21 +359,74 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Top bar (mobile) */}
-        <header className="h-16 flex items-center justify-between px-6 border-b border-flow-green/10 lg:hidden">
+        <header className="h-14 flex items-center justify-between px-4 border-b border-flow-green/10 lg:hidden">
           <button onClick={() => setSidebarOpen(true)} className="text-flow-gray-400">
             <Menu className="w-6 h-6" />
           </button>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <Video className="w-5 h-5 text-flow-green" />
-            <span className="font-display font-bold text-flow-green">FLOW</span>
+            <div className="w-6 h-6 rounded bg-flow-green flex items-center justify-center">
+              <span className="font-display font-black text-black text-[10px]">F</span>
+            </div>
+            <span className="font-display font-bold text-flow-green text-sm">FLOW</span>
           </Link>
-          <div className="w-6" />
+          <Link href="/dashboard/settings">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center font-display font-bold text-[10px]"
+              style={{
+                backgroundColor: userColor + '20',
+                color: userColor,
+                border: `1.5px solid ${userColor}40`,
+              }}
+            >
+              {user?.display_name?.[0]?.toUpperCase() || '?'}
+            </div>
+          </Link>
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 lg:p-8 overflow-y-auto pb-20 lg:pb-8">
           {children}
         </main>
+
+        {/* Mobile Bottom Nav — Instagram-style */}
+        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-black/95 backdrop-blur-xl border-t border-flow-green/10 flex items-center justify-around px-2 z-50 lg:hidden">
+          {bottomNavItems.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex flex-col items-center justify-center gap-0.5 w-16 py-2"
+              >
+                {item.isUpload ? (
+                  <div className="w-10 h-10 rounded-xl bg-flow-green flex items-center justify-center -mt-4 shadow-lg shadow-flow-green/20">
+                    <PlusCircle className="w-6 h-6 text-black" />
+                  </div>
+                ) : item.isProfile ? (
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center font-display font-bold text-[10px] ${
+                      active ? 'ring-2 ring-flow-green' : ''
+                    }`}
+                    style={{
+                      backgroundColor: userColor + '20',
+                      color: userColor,
+                      border: `1.5px solid ${active ? userColor : userColor + '40'}`,
+                    }}
+                  >
+                    {user?.display_name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                ) : (
+                  <item.icon className={`w-6 h-6 ${active ? 'text-flow-green' : 'text-flow-gray-400'}`} />
+                )}
+                {!item.isUpload && !item.isProfile && (
+                  <span className={`text-[9px] ${active ? 'text-flow-green' : 'text-flow-gray-500'}`}>
+                    {item.label}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );
