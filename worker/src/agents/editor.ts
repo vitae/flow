@@ -2,7 +2,7 @@ import { createAgentLoop } from '../shared/agent-loop';
 import { CuratedPost } from '../shared/types';
 import { trimToShorts, getVideoDuration } from '../lib/ffmpeg';
 
-async function process(post: CuratedPost) {
+async function handlePost(post: CuratedPost) {
   if (!post.video_path) throw new Error('No video_path set');
 
   console.log(`[editor] Trimming ${post.video_path} to ≤59s`);
@@ -22,5 +22,5 @@ export const editorAgent = createAgentLoop(
     pollIntervalMs: 10_000,
     batchSize: 2,
   },
-  process
+  handlePost,
 );

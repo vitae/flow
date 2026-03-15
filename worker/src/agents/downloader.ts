@@ -3,7 +3,7 @@ import { CuratedPost } from '../shared/types';
 import { downloadFile, getVideoDuration } from '../lib/ffmpeg';
 import { getVideoUrl } from '../lib/instagram';
 
-async function process(post: CuratedPost) {
+async function handlePost(post: CuratedPost) {
   console.log(`[downloader] Downloading ${post.ig_permalink}`);
 
   const { url, width, height } = await getVideoUrl(post.ig_permalink);
@@ -25,5 +25,5 @@ export const downloaderAgent = createAgentLoop(
     pollIntervalMs: 10_000,
     batchSize: 3,
   },
-  process
+  handlePost,
 );

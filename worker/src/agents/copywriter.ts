@@ -21,7 +21,7 @@ Return ONLY JSON: {"title":"<catchy title under 100 chars with emoji>","descript
   return JSON.parse(text.match(/\{[\s\S]*\}/)![0]);
 }
 
-async function process(post: CuratedPost) {
+async function handlePost(post: CuratedPost) {
   console.log(`[copywriter] Generating metadata for @${post.ig_username}`);
   const metadata = await generateMetadata(post.ig_username, post.ig_permalink);
   console.log(`[copywriter] Title: "${metadata.title}"`);
@@ -42,5 +42,5 @@ export const copywriterAgent = createAgentLoop(
     pollIntervalMs: 10_000,
     batchSize: 3,
   },
-  process
+  handlePost,
 );

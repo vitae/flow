@@ -3,7 +3,7 @@ import { CuratedPost } from '../shared/types';
 import { uploadToYouTube } from '../lib/youtube';
 import { cleanup } from '../lib/ffmpeg';
 
-async function process(post: CuratedPost) {
+async function handlePost(post: CuratedPost) {
   if (!post.video_path) throw new Error('No video_path set');
   if (!post.title || !post.description) throw new Error('No metadata set');
 
@@ -35,5 +35,5 @@ export const publisherAgent = createAgentLoop(
     pollIntervalMs: 10_000,
     batchSize: 1,
   },
-  process
+  handlePost,
 );

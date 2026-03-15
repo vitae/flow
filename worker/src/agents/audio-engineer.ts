@@ -50,7 +50,7 @@ async function findTrendingAudio(): Promise<{ videoId: string; title: string }> 
   throw new Error('No trending audio found after 3 attempts');
 }
 
-async function process(post: CuratedPost) {
+async function handlePost(post: CuratedPost) {
   if (!post.video_path) throw new Error('No video_path set');
 
   // 1. Always strip original audio
@@ -89,5 +89,5 @@ export const audioEngineerAgent = createAgentLoop(
     pollIntervalMs: 10_000,
     batchSize: 1,
   },
-  process
+  handlePost,
 );
