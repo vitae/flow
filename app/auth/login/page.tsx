@@ -89,6 +89,9 @@ export default function LoginPage() {
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
                   Send magic link
                 </button>
+                <p className="text-flow-gray-500 text-xs text-center">
+                  No password needed — we&apos;ll email you a secure sign-in link
+                </p>
               </form>
             </>
           )}
