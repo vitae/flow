@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Upload, Sparkles, Music, Hash, Share2, Zap, ArrowRight, Check, Crown, Rocket, Users } from 'lucide-react';
+import { Upload, Sparkles, Music, Hash, Share2, Zap, ArrowRight, Check, Crown, Rocket, Users, Globe, TrendingUp, DollarSign, Radio } from 'lucide-react';
 
 const features = [
   { icon: Upload, title: 'Upload once', desc: 'Drag & drop your video — we handle the rest', color: 'text-flow-green' },
@@ -235,14 +235,115 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Motivational CTA — Built by Flow Artists */}
+      <section className="py-20 px-6 border-t border-flow-green/10 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-flow-magenta/5 via-transparent to-flow-green/5 pointer-events-none" />
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className="inline-flex items-center gap-2 rounded-full border border-flow-magenta/20 bg-flow-magenta/5 px-4 py-1.5 text-sm text-flow-magenta mb-8">
+              <Sparkles className="w-3.5 h-3.5" />
+              Built by flow artists, for flow artists
+            </div>
+
+            <h2 className="font-display font-black text-3xl md:text-5xl leading-tight tracking-tight mb-6">
+              Tired of getting <span className="text-flow-red">a few hundred views?</span>
+              <br />
+              <span className="text-flow-green text-glow-green">Imagine reaching 8.5 billion.</span>
+            </h2>
+
+            <p className="text-lg md:text-xl text-flow-gray-200 max-w-3xl mx-auto mb-8 leading-relaxed">
+              You didn&apos;t learn to spin fire, dance with LED, or master the art of flow just to be invisible online.
+              Your content deserves to be seen by <span className="text-flow-green font-semibold">every person on every platform</span>.
+            </p>
+
+            <div className="glass-card border-flow-green/20 p-8 max-w-3xl mx-auto mb-10">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Radio className="w-5 h-5 text-flow-green animate-pulse" />
+                <span className="font-display font-bold text-flow-green text-lg">24/7 NON-STOP POSTING SERVER</span>
+                <Radio className="w-5 h-5 text-flow-green animate-pulse" />
+              </div>
+              <p className="text-flow-gray-200 mb-6 leading-relaxed">
+                When you subscribe, your content is added to our <span className="text-white font-semibold">always-on distribution engine</span>.
+                Every video you upload is automatically processed with AI captions, trending music, and optimized hashtags —
+                then posted to <span className="text-flow-green font-semibold">every connected platform, simultaneously</span>.
+                Our servers never sleep, so your content is always working for you.
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="text-center">
+                  <p className="text-xl font-display font-black" style={{ color: '#FF0000' }}>2.7B</p>
+                  <p className="text-[10px] text-flow-gray-400 uppercase tracking-wider">YouTube</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-display font-black" style={{ color: '#E4405F' }}>2.4B</p>
+                  <p className="text-[10px] text-flow-gray-400 uppercase tracking-wider">Instagram</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-display font-black" style={{ color: '#1877F2' }}>3.1B</p>
+                  <p className="text-[10px] text-flow-gray-400 uppercase tracking-wider">Facebook</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-display font-black" style={{ color: '#8B5CF6' }}>300M</p>
+                  <p className="text-[10px] text-flow-gray-400 uppercase tracking-wider">Threads</p>
+                </div>
+              </div>
+
+              <div className="bg-flow-green/5 rounded-xl border border-flow-green/20 p-4">
+                <p className="font-display font-black text-2xl md:text-3xl text-flow-green mb-1">
+                  8.5 Billion+ Users
+                </p>
+                <p className="text-sm text-flow-gray-300">
+                  Total reach across all platforms — and your content hits them all with one upload
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto mb-10">
+              <div className="glass-card p-5 text-center">
+                <Globe className="w-8 h-8 text-flow-green mx-auto mb-3" />
+                <h3 className="font-display font-semibold mb-1">Global Reach</h3>
+                <p className="text-xs text-flow-gray-400">Your flow goes worldwide. Every platform. Every audience. Automatically.</p>
+              </div>
+              <div className="glass-card p-5 text-center">
+                <DollarSign className="w-8 h-8 text-flow-magenta mx-auto mb-3" />
+                <h3 className="font-display font-semibold mb-1">Make Money Flowing</h3>
+                <p className="text-xs text-flow-gray-400">More views = more followers = brand deals, gig offers, and sponsorships.</p>
+              </div>
+              <div className="glass-card p-5 text-center">
+                <TrendingUp className="w-8 h-8 text-flow-yellow mx-auto mb-3" />
+                <h3 className="font-display font-semibold mb-1">Grow Faster</h3>
+                <p className="text-xs text-flow-gray-400">AI finds what&apos;s trending and makes sure your content rides the wave.</p>
+              </div>
+            </div>
+
+            <p className="text-xl md:text-2xl font-display font-bold text-white mb-2">
+              Start making money doing what you love.
+            </p>
+            <p className="text-flow-gray-300 mb-8">
+              Pick a plan below and join the 24/7 posting server today.
+            </p>
+            <a href="#pricing" className="btn-primary text-lg px-10 py-4">
+              See Plans <ArrowRight className="w-5 h-5" />
+            </a>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Pricing */}
       <section id="pricing" className="py-20 px-6 border-t border-flow-green/10">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-6">
             <h2 className="font-display font-bold text-3xl md:text-4xl mb-4">
               Choose your <span className="text-flow-green">flow</span>
             </h2>
-            <p className="text-flow-gray-300 text-lg">Start free. Scale when you&apos;re ready.</p>
+            <p className="text-flow-gray-300 text-lg mb-2">Start free. Scale when you&apos;re ready.</p>
+            <p className="text-sm text-flow-gray-400">
+              Every plan includes access to our <span className="text-flow-green font-medium">24/7 non-stop posting server</span> — your content never stops working
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
