@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  --flow-green: #00FF00;
+  --flow-magenta: #FF00FF;
+  --flow-yellow: #FFFF00;
+  --flow-red: #FF0000;
+  --flow-black: #000000;
+  --flow-dark: #0a0a0a;
+  --flow-gray: #808880;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  background: var(--flow-black);
+  color: #e0e0e0;
+  font-family: 'Montserrat', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* iOS safe area support */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #00FF0040;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00FF0080;
+}
+
+/* Glassmorphic card base */
+@layer components {
+  .glass-card {
+    @apply relative overflow-hidden rounded-xl border border-flow-green/10 bg-flow-dark/80 backdrop-blur-xl;
+  }
+
+  .glass-card-magenta {
+    @apply relative overflow-hidden rounded-xl border border-flow-magenta/10 bg-flow-dark/80 backdrop-blur-xl;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-flow-green px-6 py-3 font-display font-semibold text-black transition-all duration-200 hover:bg-flow-green/90 hover:shadow-[0_0_20px_#00FF0040] active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-flow-green/30 px-6 py-3 font-display font-medium text-flow-green transition-all duration-200 hover:bg-flow-green/10 hover:border-flow-green/60 active:scale-95;
+  }
+
+  .btn-magenta {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-flow-magenta px-6 py-3 font-display font-semibold text-black transition-all duration-200 hover:bg-flow-magenta/90 hover:shadow-[0_0_20px_#FF00FF40] active:scale-95;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-flow-green/20 bg-flow-gray-800 px-4 py-3 font-body text-white placeholder-flow-gray-400 outline-none transition-all duration-200 focus:border-flow-green/60 focus:ring-1 focus:ring-flow-green/30;
+  }
+
+  .text-glow-green {
+    text-shadow: 0 0 10px #00FF0060, 0 0 20px #00FF0030;
+  }
+
+  .text-glow-magenta {
+    text-shadow: 0 0 10px #FF00FF60, 0 0 20px #FF00FF30;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium;
+  }
+}
+
+/* Selection color */
+::selection {
+  background: #00FF0040;
+  color: #00FF00;
+}
