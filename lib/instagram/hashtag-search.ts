@@ -1,4 +1,10 @@
 import { createServerClient } from '@/lib/supabase/client';
+import crypto from 'crypto';
+
+function appsecretProof(token: string): string {
+  const secret = process.env.META_APP_SECRET!;
+  return crypto.createHmac('sha256', secret).update(token).digest('hex');
+}
 
 const FLOW_HASHTAGS = [
   'flowarts', 'flowartsfriday', 'hulahoop', 'poi', 'juggling',
@@ -42,15 +48,19 @@ async function getIGAccessToken(): Promise<{ token: string; igUserId: string }> 
 async function searchHashtag(hashtag: string, token: string, igUserId: string): Promise<IGMedia[]> {
   // 1. Get hashtag ID
   const searchRes = await fetch(
-    `https://graph.facebook.com/v21.0/ig_hashtag_search?q=${encodeURIComponent(hashtag)}&user_id=${igUserId}&access_token=${token}`
+    `https://graph.facebook.com/v21.0/ig_hashtag_search?q=${encodeURIComponent(hashtag)}&user_id=${igUserId}&access_token=${token}&appsecret_proof=${appsecretProof(token)}`
   );
   const searchData = await searchRes.json();
+  if (searchData.error) {
+    console.error(`IG hashtag search error for #${hashtag}:`, searchData.error);
+    return [];
+  }
   if (!searchData.data?.[0]?.id) return [];
   const hashtagId = searchData.data[0].id;
 
   // 2. Get top media for this hashtag
   const mediaRes = await fetch(
-    `https://graph.facebook.com/v21.0/${hashtagId}/top_media?user_id=${igUserId}&fields=id,media_type,media_url,permalink,like_count,comments_count,username,timestamp&access_token=${token}`
+    `https://graph.facebook.com/v21.0/${hashtagId}/top_media?user_id=${igUserId}&fields=id,media_type,media_url,permalink,like_count,comments_count,username,timestamp&access_token=${token}&appsecret_proof=${appsecretProof(token)}`
   );
   const mediaData = await mediaRes.json();
   return (mediaData.data || []).filter((m: IGMedia) => m.media_type === 'VIDEO');
