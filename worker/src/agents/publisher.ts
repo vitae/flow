@@ -1,5 +1,6 @@
 import { CuratedPost } from '../shared/types';
 import { uploadToYouTube } from '../lib/youtube';
+import { publishToInstagramReels, publishToFacebookReels } from '../lib/meta-reels';
 import { cleanup } from '../lib/ffmpeg';
 import { getSupabase } from '../shared/supabase';
 
@@ -30,11 +31,35 @@ async function handlePost(post: CuratedPost) {
     fullDescription,
     post.hashtags || [],
   );
+  console.log(`[publisher] YouTube: https://youtube.com/shorts/${ytVideoId}`);
 
-  console.log(`[publisher] Uploaded: https://youtube.com/shorts/${ytVideoId}`);
+  // Cross-post to Instagram Reels
+  let igMediaId: string | null = null;
+  try {
+    const igCaption = `${post.title}\n\n${hashtagStr}\n\nOriginal: ${post.ig_permalink}\n🌊 gwdf.pro`;
+    igMediaId = await publishToInstagramReels(post.video_path, igCaption);
+    console.log(`[publisher] Instagram Reel posted: ${igMediaId}`);
+  } catch (err: any) {
+    console.error(`[publisher] IG Reels failed (non-fatal):`, err.message);
+  }
+
+  // Cross-post to Facebook Reels
+  let fbVideoId: string | null = null;
+  try {
+    fbVideoId = await publishToFacebookReels(post.video_path, fullDescription);
+    console.log(`[publisher] Facebook Reel posted: ${fbVideoId}`);
+  } catch (err: any) {
+    console.error(`[publisher] FB Reels failed (non-fatal):`, err.message);
+  }
+
+  // Clean up after all uploads are done
   cleanup(post.video_path);
 
-  return { youtube_video_id: ytVideoId };
+  return {
+    youtube_video_id: ytVideoId,
+    ig_reels_id: igMediaId,
+    fb_reels_id: fbVideoId,
+  };
 }
 
 // Custom publisher loop with rate limiting

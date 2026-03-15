@@ -8,6 +8,10 @@ export interface CuratedPost {
   youtube_video_id: string | null;
   youtube_audio_id: string | null;
   youtube_audio_title: string | null;
+  ig_reels_id: string | null;
+  ig_reels_audio: string | null;
+  fb_reels_id: string | null;
+  fb_reels_audio: string | null;
   title: string | null;
   description: string | null;
   hashtags: string[];
