@@ -7,7 +7,8 @@ import * as THREE from 'three';
 import {
   Search, Download, Volume2, Scissors, PenTool, Upload, Cookie, Music,
   RefreshCw, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink,
-  Zap, TrendingUp, Terminal, ChevronRight, ArrowRight,
+  Zap, TrendingUp, Terminal, ChevronRight, ArrowRight, X, UploadCloud,
+  Film,
 } from 'lucide-react';
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -477,12 +478,194 @@ function FlowArrow({ fromColor, toColor, pulsePhase }: { fromColor: string; toCo
   );
 }
 
+/* ── Upload Modal ───────────────────────────────────────────── */
+function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setUploading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('video', file);
+      if (title) formData.append('title', title);
+
+      const res = await fetch('/api/swarm/submit', { method: 'POST', body: formData });
+      const json = await res.json();
+
+      if (!res.ok) {
+        setError(json.error || 'Upload failed');
+        return;
+      }
+
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped?.type.startsWith('video/')) setFile(dropped);
+    else setError('Only video files are accepted');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      <div
+        className="relative rounded-2xl w-full max-w-lg overflow-hidden"
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'rgba(8, 8, 8, 0.95)',
+          backdropFilter: 'blur(30px)',
+          border: '1px solid #00FF0030',
+          boxShadow: '0 0 60px #00FF0015, inset 0 0 60px #00FF0005',
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: '#00FF0015' }}>
+          <div className="flex items-center gap-3">
+            <UploadCloud className="w-6 h-6" style={{ color: '#00FF00' }} />
+            <span className="font-pixel text-sm tracking-wider" style={{ color: '#00FF00', textShadow: '0 0 8px #00FF0080' }}>
+              SUBMIT VIDEO
+            </span>
+          </div>
+          <button onClick={onClose} className="text-flow-gray-500 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Drop zone */}
+          <div
+            className={`rounded-xl p-8 text-center cursor-pointer transition-all ${dragOver ? 'scale-[1.02]' : ''}`}
+            onClick={() => inputRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            style={{
+              background: dragOver ? '#00FF0010' : '#0a0a0a',
+              border: `2px dashed ${file ? '#00FF0050' : dragOver ? '#00FF0060' : '#1a1a1a'}`,
+              boxShadow: file ? '0 0 20px #00FF0010' : 'none',
+            }}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={e => { if (e.target.files?.[0]) setFile(e.target.files[0]); }}
+            />
+            {file ? (
+              <div className="space-y-2">
+                <Film className="w-10 h-10 mx-auto" style={{ color: '#00FF00' }} />
+                <div className="font-mono text-sm text-white truncate">{file.name}</div>
+                <div className="font-mono text-xs text-flow-gray-500">
+                  {(file.size / (1024 * 1024)).toFixed(1)} MB
+                </div>
+                <button
+                  onClick={e => { e.stopPropagation(); setFile(null); }}
+                  className="font-pixel text-[9px] tracking-wider px-3 py-1 rounded-lg"
+                  style={{ color: '#FF0000', border: '1px solid #FF000030', background: '#FF000008' }}
+                >
+                  REMOVE
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <UploadCloud className="w-12 h-12 mx-auto text-flow-gray-600" />
+                <div className="font-pixel text-xs tracking-wider text-flow-gray-400">
+                  DROP VIDEO HERE
+                </div>
+                <div className="font-mono text-xs text-flow-gray-700">
+                  or click to browse — MP4, MOV, WebM (max 100MB)
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Title input */}
+          <div>
+            <label className="font-pixel text-[9px] tracking-wider block mb-2" style={{ color: '#00FF0080' }}>
+              TITLE (OPTIONAL)
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Video title..."
+              className="w-full rounded-lg px-4 py-3 font-mono text-sm text-white placeholder-flow-gray-600 outline-none"
+              style={{
+                background: '#0a0a0a',
+                border: '1px solid #00FF0020',
+                boxShadow: 'inset 0 0 10px #00000050',
+              }}
+            />
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="font-mono text-xs p-3 rounded-lg" style={{ color: '#FF0000', background: '#FF000010', border: '1px solid #FF000020' }}>
+              {error}
+            </div>
+          )}
+
+          {/* Info */}
+          <div className="font-mono text-[11px] text-flow-gray-600 leading-relaxed">
+            Video will skip the downloader and go straight into the audio/editing pipeline.
+            The agents will process it automatically.
+          </div>
+
+          {/* Submit button */}
+          <button
+            onClick={handleUpload}
+            disabled={!file || uploading}
+            className="w-full font-pixel text-sm tracking-wider py-4 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              background: file ? '#00FF0015' : '#0a0a0a',
+              border: `2px solid ${file ? '#00FF0050' : '#1a1a1a'}`,
+              color: '#00FF00',
+              textShadow: file ? '0 0 8px #00FF00' : 'none',
+              boxShadow: file ? '0 0 30px #00FF0015' : 'none',
+            }}
+          >
+            {uploading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                UPLOADING...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <UploadCloud className="w-5 h-5" />
+                SUBMIT TO PIPELINE
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Dashboard ─────────────────────────────────────────── */
 export default function SwarmDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [tick, setTick] = useState(0);
+  const [showUpload, setShowUpload] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -588,6 +771,13 @@ export default function SwarmDashboard() {
                 </div>
               ))}
             </div>
+            <button
+              onClick={() => setShowUpload(true)}
+              className="flex items-center gap-2 font-pixel text-[10px] px-4 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(0,255,0,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,0,0.3)', color: '#00FF00', textShadow: '0 0 6px #00FF0060' }}>
+              <UploadCloud className="w-4 h-4" />
+              UPLOAD
+            </button>
             <button onClick={fetchData}
               className="flex items-center gap-2 font-pixel text-[10px] px-4 py-3 rounded-xl text-flow-green transition-all hover:scale-105"
               style={{ background: 'rgba(0,255,0,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,0,0.2)' }}>
@@ -596,6 +786,14 @@ export default function SwarmDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Upload Modal */}
+        {showUpload && (
+          <UploadModal
+            onClose={() => setShowUpload(false)}
+            onSuccess={() => { setShowUpload(false); fetchData(); }}
+          />
+        )}
 
         {/* ─── Pipeline Flow (compact) ────────────────────────── */}
         <div className="rounded-xl px-5 py-3 flex items-center gap-1 overflow-x-auto" style={{
