@@ -3,7 +3,7 @@ import { getTodaysHashtags, getIGAccessToken, searchHashtag, IGMedia } from '../
 
 const SCOUT_INTERVAL_MS = 10_000; // 10 seconds between hashtag searches
 const MIN_LIKES_FOR_VIRAL = 10_000;
-const MIN_LIKES_FALLBACK = 1_000;
+const MIN_LIKES_FALLBACK = 5_000;
 
 let hashtagIndex = 0;
 

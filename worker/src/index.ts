@@ -6,6 +6,7 @@ import { editorAgent } from './agents/editor';
 import { copywriterAgent } from './agents/copywriter';
 import { startPublisher } from './agents/publisher';
 import { startMusicAdder } from './agents/music-adder';
+import { startCookieRefresher } from './agents/cookie-refresher';
 
 const app = express();
 app.use(express.json());
@@ -54,7 +55,7 @@ app.post('/process', auth, async (_req, res) => {
 // Health check
 app.get('/health', (_req, res) => res.json({
   ok: true,
-  agents: ['scout', 'downloader', 'audio_engineer', 'editor', 'copywriter', 'publisher', 'music_adder'],
+  agents: ['scout', 'downloader', 'audio_engineer', 'editor', 'copywriter', 'publisher', 'music_adder', 'cookie_refresher'],
   env: {
     supabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -83,6 +84,7 @@ app.listen(PORT, () => {
   editorAgent.start();
   copywriterAgent.start();
   startPublisher();
+  startCookieRefresher(); // Refresh YT Studio cookies every 6h before they expire
   startMusicAdder();
 
   console.log('All agents running.');

@@ -1,30 +1,29 @@
 import crypto from 'crypto';
 import { getSupabase } from '../shared/supabase';
 
-// Viral content across flow arts, dance, extreme sports, rave culture
+// Mega-viral hashtags (100M+ posts each) — these surface content with real engagement
 const VIRAL_HASHTAGS = [
-  // Flow arts core
-  'flowarts', 'flowartsfriday', 'hulahoop', 'hulahoops', 'hooping',
-  'poi', 'poispinning', 'leviwand', 'staffspinning', 'buugeng',
-  'contactjuggling', 'juggling', 'firespinner', 'firedance', 'fireperformance',
-  'ledflow', 'gloving', 'whip', 'whipcracking', 'fans',
-  // Dance & performance
-  'dance', 'dancer', 'dancing', 'choreography', 'shuffle',
-  'shuffledance', 'popping', 'breaking', 'hiphop', 'contemporary',
-  // Swords & martial arts
-  'sword', 'swordsmanship', 'katana', 'martialarts', 'lightsaber',
-  // Extreme sports
-  'snowboard', 'snowboarding', 'skateboarding', 'surfing', 'parkour',
-  'bmx', 'skiing', 'wakeboarding', 'motocross', 'climbing',
-  // Rave & music culture
-  'dj', 'edm', 'rave', 'plur', 'festival',
-  'ravefashion', 'bassmusic', 'dubstep', 'techno', 'housemusic',
-  'raver', 'festivalseason', 'raveparty', 'edmfamily', 'totems',
-  // Viral amplifiers
-  'viral', 'viralreels', 'satisfying', 'oddlysatisfying', 'nextlevel',
-  'mindblowing', 'skills', 'talent', 'insane', 'amazing',
+  // Mega viral (billions of posts, highest chance of 10k+ like content)
+  'viral', 'viralvideo', 'viralreels', 'trending', 'trendingreels',
+  'explore', 'explorepage', 'fyp', 'foryou', 'reels',
+  'reelsviral', 'reelsinstagram', 'instagood', 'instadaily',
+  // Massive entertainment
+  'funny', 'funnyvideos', 'comedy', 'memes', 'lol',
+  'satisfying', 'oddlysatisfying', 'asmr', 'amazing', 'wow',
+  // Skills & talent (high engagement)
+  'talent', 'skills', 'nextlevel', 'mindblowing', 'insane',
+  'unbelievable', 'incredible', 'epic', 'crazyvideo',
+  // Dance & music (massive audiences)
+  'dance', 'dancing', 'dancer', 'choreography', 'dancetrending',
+  'edm', 'rave', 'festival', 'dj', 'musicfestival',
+  // Sports & action (high virality)
+  'sports', 'extreme', 'parkour', 'skateboarding', 'surfing',
+  'snowboarding', 'bmx', 'martialarts', 'fitness', 'workout',
+  // Lifestyle viral
+  'motivation', 'inspiration', 'lifehack', 'howto', 'tutorial',
+  'beautiful', 'nature', 'travel', 'adventure',
 ];
-const HASHTAGS_PER_DAY = 15;
+const HASHTAGS_PER_DAY = 20;
 
 function appsecretProof(token: string): string {
   return crypto.createHmac('sha256', process.env.META_APP_SECRET!).update(token).digest('hex');
@@ -70,8 +69,9 @@ export async function searchHashtag(hashtag: string, token: string, igUserId: st
   }
 
   const hashtagId = searchData.data[0].id;
+  // Use top_media (most popular) instead of recent_media (most recent)
   const mediaRes = await fetch(
-    `https://graph.facebook.com/v21.0/${hashtagId}/recent_media?user_id=${igUserId}&fields=id,media_type,permalink,like_count,caption,timestamp&access_token=${token}&appsecret_proof=${proof}`
+    `https://graph.facebook.com/v21.0/${hashtagId}/top_media?user_id=${igUserId}&fields=id,media_type,permalink,like_count,caption,timestamp&access_token=${token}&appsecret_proof=${proof}`
   );
   const mediaData = await mediaRes.json();
   if (mediaData.error) {
@@ -81,7 +81,7 @@ export async function searchHashtag(hashtag: string, token: string, igUserId: st
   return (mediaData.data || []).filter((m: IGMedia) => m.media_type === 'VIDEO');
 }
 
-const MIN_LIKES_FOR_VIRAL = 10_000; // Viral threshold for niche content (10k+ likes)
+const MIN_LIKES_FOR_VIRAL = 10_000;
 
 export async function discoverViralVideos(): Promise<IGMedia[]> {
   const { token, igUserId } = await getIGAccessToken();

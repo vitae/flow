@@ -1,6 +1,7 @@
 import { chromium, type Browser } from 'playwright';
 import { google } from 'googleapis';
 import { getSupabase } from '../shared/supabase';
+import { getStoredCookies } from './cookie-refresher';
 import crypto from 'crypto';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -74,49 +75,58 @@ async function addMusicToShort(videoId: string): Promise<string> {
     viewport: { width: 1920, height: 1080 },
   });
 
-  // Build cookies from OAuth access token + any static cookies as fallback
-  const accessToken = await getGoogleAccessToken();
-  console.log(`[music_adder] Got fresh Google access token`);
-
-  // Set auth cookies using the OAuth token
-  const baseCookies = [
-    { name: 'SID', value: accessToken, domain: '.youtube.com', path: '/' },
-    { name: 'APISID', value: accessToken, domain: '.youtube.com', path: '/' },
-  ];
-
-  // Also load static cookies from env if available (belt + suspenders)
-  const raw = process.env.YOUTUBE_STUDIO_COOKIES;
-  if (raw) {
-    try {
-      const staticCookies = JSON.parse(raw);
-      await context.addCookies(staticCookies.map((c: any) => ({
-        ...c,
-        domain: c.domain || '.youtube.com',
-        path: c.path || '/',
-      })));
-      console.log(`[music_adder] Loaded ${staticCookies.length} static cookies`);
-    } catch {}
+  // Load cookies from cookie-refresher agent (primary) or static env (fallback)
+  const storedCookies = await getStoredCookies();
+  if (storedCookies?.cookies?.length) {
+    await context.addCookies(storedCookies.cookies.map(c => ({
+      name: c.name,
+      value: c.value,
+      domain: c.domain,
+      path: c.path,
+      expires: c.expires,
+      httpOnly: c.httpOnly,
+      secure: c.secure,
+      sameSite: c.sameSite,
+    })));
+    console.log(`[music_adder] Loaded ${storedCookies.cookies.length} cookies from refresher (refreshed: ${storedCookies.refreshed_at})`);
+  } else {
+    // Fallback to static cookies from env
+    const raw = process.env.YOUTUBE_STUDIO_COOKIES;
+    if (raw) {
+      try {
+        const staticCookies = JSON.parse(raw);
+        await context.addCookies(staticCookies.map((c: any) => ({
+          ...c,
+          domain: c.domain || '.youtube.com',
+          path: c.path || '/',
+        })));
+        console.log(`[music_adder] Loaded ${staticCookies.length} static cookies from env`);
+      } catch {}
+    }
   }
+
+  // Also try OAuth flow as belt-and-suspenders
+  const accessToken = await getGoogleAccessToken();
 
   const page = await context.newPage();
   let addedTrack = 'unknown';
 
   try {
-    // First, use OAuth to get fresh session cookies
-    // Navigate to accounts.google.com with the access token to get authenticated cookies
-    await page.goto(`https://accounts.google.com/o/oauth2/auth?access_token=${accessToken}&response_type=token&client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=https://studio.youtube.com&scope=https://www.googleapis.com/auth/youtube`, {
+    // Try OAuth flow to establish session if cookies aren't enough
+    await page.goto(`https://accounts.google.com/o/oauth2/auth?access_token=${accessToken}&response_type=token&client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent('https://studio.youtube.com')}&scope=${encodeURIComponent('https://www.googleapis.com/auth/youtube')}`, {
       waitUntil: 'networkidle',
       timeout: 15000,
     }).catch(() => {});
+    await page.waitForTimeout(2000);
 
-    // Now navigate to the editor
+    // Navigate to the editor
     const editorUrl = `https://studio.youtube.com/video/${videoId}/editor`;
     console.log(`[music_adder] Navigating to ${editorUrl}`);
     await page.goto(editorUrl, { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(3000);
 
     if (page.url().includes('accounts.google.com')) {
-      throw new Error('Not authenticated — OAuth + cookies both failed');
+      throw new Error('Not authenticated — cookies expired, cookie-refresher needs to run');
     }
 
     // Look for the Audio section / "+" button
