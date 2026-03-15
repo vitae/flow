@@ -1,20 +1,18 @@
 import crypto from 'crypto';
 import { getSupabase } from '../shared/supabase';
 
-// Only the biggest hashtags on Instagram — these are where the most viral content lives.
-// 30 hashtags max per 7-day rolling window. We use all 30 over the week.
+// 30 hashtags max per 7-day rolling window. Mix of massive viral + our niche.
 const VIRAL_HASHTAGS = [
+  // Massive viral (find the biggest posts on IG)
   'viral', 'viralvideo', 'viralreels',
-  'trending', 'trendingreels', 'trendingaudio',
-  'explore', 'explorepage', 'fyp', 'foryoupage',
-  'reels', 'reelsviral', 'reelsinstagram',
-  'funny', 'funnyvideos', 'funnymemes',
-  'satisfying', 'oddlysatisfying',
+  'trending', 'trendingreels', 'explore', 'explorepage',
+  'fyp', 'reels', 'reelsviral',
+  'funny', 'funnyvideos', 'satisfying', 'oddlysatisfying',
   'amazing', 'incredible', 'nextlevel',
-  'dance', 'dancereels',
-  'comedy', 'memes',
-  'talent', 'skills',
-  'edm', 'rave', 'festival',
+  'dance', 'comedy', 'memes', 'talent', 'skills',
+  // Our niche (flow arts, rave, performance)
+  'flowarts', 'hulahoop', 'poi', 'edm', 'rave', 'festival',
+  'gloving', 'firespinner',
 ];
 // 4 hashtags/day × 7 days = 28 unique per week (under the 30 limit)
 const HASHTAGS_PER_DAY = 4;
