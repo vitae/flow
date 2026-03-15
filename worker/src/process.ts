@@ -51,13 +51,23 @@ Return ONLY JSON: {"title":"<catchy title under 100 chars with emoji>","descript
 }
 
 export async function processAllPending() {
-  const { data: pending } = await supabase
+  console.log('Processing pending posts...');
+  console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING');
+  console.log('Service Role Key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING');
+
+  const { data: pending, error: queryError } = await supabase
     .from('curated_posts')
     .select('*')
     .eq('status', 'pending')
     .order('ig_like_count', { ascending: false })
     .limit(3);
 
+  if (queryError) {
+    console.error('Supabase query error:', queryError);
+    return { processed: 0, error: queryError.message };
+  }
+
+  console.log('Found pending posts:', pending?.length || 0);
   if (!pending?.length) return { processed: 0 };
 
   let processed = 0;
