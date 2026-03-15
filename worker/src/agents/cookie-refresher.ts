@@ -2,8 +2,8 @@ import { chromium } from 'playwright';
 import { google } from 'googleapis';
 import { getSupabase } from '../shared/supabase';
 
-// Refresh every 6 hours (Google session cookies last ~24h, so 6h gives plenty of margin)
-const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+// Refresh every 45 minutes (keep cookies fresh before they expire)
+const REFRESH_INTERVAL_MS = 45 * 60 * 1000;
 
 interface StoredCookies {
   cookies: Array<{
@@ -167,7 +167,7 @@ export async function getStoredCookies(): Promise<StoredCookies | null> {
 }
 
 export function startCookieRefresher() {
-  console.log(`[cookie-refresher] Agent started — refreshing every ${REFRESH_INTERVAL_MS / 3600000}h`);
+  console.log(`[cookie-refresher] Agent started — refreshing every ${REFRESH_INTERVAL_MS / 60000}min`);
 
   async function tick() {
     try {
@@ -178,7 +178,7 @@ export function startCookieRefresher() {
     }
   }
 
-  // Refresh immediately on startup, then every 6 hours
+  // Refresh immediately on startup, then every 45 minutes
   tick();
   setInterval(tick, REFRESH_INTERVAL_MS);
 }
