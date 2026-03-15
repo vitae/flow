@@ -22,6 +22,11 @@ export interface User {
   email: string;
   display_name: string | null;
   avatar_url: string | null;
+  bio: string | null;
+  favorite_color: string | null;
+  flow_toys: string[];
+  location: string | null;
+  website: string | null;
   subscription_tier: SubscriptionTier;
   stripe_customer_id: string | null;
   videos_this_month: number;
