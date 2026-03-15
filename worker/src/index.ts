@@ -4,7 +4,7 @@ import { downloaderAgent } from './agents/downloader';
 import { audioEngineerAgent } from './agents/audio-engineer';
 import { editorAgent } from './agents/editor';
 import { copywriterAgent } from './agents/copywriter';
-import { publisherAgent } from './agents/publisher';
+import { startPublisher } from './agents/publisher';
 
 const app = express();
 app.use(express.json());
@@ -38,7 +38,7 @@ app.post('/process', auth, async (_req, res) => {
       audio_engineer: audioEngineerAgent,
       editor: editorAgent,
       copywriter: copywriterAgent,
-      publisher: publisherAgent,
+      // publisher handled separately with rate limiting
     };
     for (const [name, agent] of Object.entries(agents)) {
       results[name] = await agent.tick();
@@ -76,7 +76,7 @@ app.listen(PORT, () => {
   audioEngineerAgent.start();
   editorAgent.start();
   copywriterAgent.start();
-  publisherAgent.start();
+  startPublisher();
 
   console.log('All agents running.');
 });

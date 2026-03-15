@@ -7,7 +7,6 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.37.0",
     "@supabase/supabase-js": "^2.47.0",
     "express": "^4.21.0",
     "fluent-ffmpeg": "^2.1.3",

@@ -19,17 +19,19 @@ async function findTrendingAudio(): Promise<{ videoId: string; title: string }> 
     'edm dance music', 'bass house music', 'rave festival music',
     'electronic dance music', 'dubstep drops', 'flow arts music',
     'popular shorts background music', 'edm remix popular songs',
+    'NCS music no copyright', 'free EDM music for videos',
   ];
 
   for (let i = 0; i < 3; i++) {
     const query = queries[Math.floor(Math.random() * queries.length)];
-    console.log(`[audio_engineer] Searching: "${query}"`);
+    console.log(`[audio_engineer] Searching YouTube: "${query}"`);
 
     const res = await fetch(
       `https://www.googleapis.com/youtube/v3/search?` +
       new URLSearchParams({
         part: 'snippet', q: query, type: 'video',
         order: 'viewCount', maxResults: '20',
+        videoDuration: 'short',
         key: process.env.YOUTUBE_API_KEY!,
       })
     );
@@ -38,14 +40,19 @@ async function findTrendingAudio(): Promise<{ videoId: string; title: string }> 
       console.error(`[audio_engineer] YT API error:`, data.error.message);
       continue;
     }
-    if (!data.items?.length) continue;
+    if (!data.items?.length) {
+      console.log(`[audio_engineer] No results for "${query}"`);
+      continue;
+    }
 
-    // Filter out already-used songs
     const unused = data.items.filter((item: any) => !usedIds.has(item.id.videoId));
     console.log(`[audio_engineer] Found ${unused.length}/${data.items.length} unused songs`);
 
     const pick = unused[Math.floor(Math.random() * Math.min(unused.length, 5))];
-    if (pick) return { videoId: pick.id.videoId, title: pick.snippet.title };
+    if (pick) {
+      console.log(`[audio_engineer] Selected: "${pick.snippet.title}" (${pick.id.videoId})`);
+      return { videoId: pick.id.videoId, title: pick.snippet.title };
+    }
   }
   throw new Error('No trending audio found after 3 attempts');
 }
@@ -64,13 +71,15 @@ async function handlePost(post: CuratedPost) {
 
   try {
     const audio = await findTrendingAudio();
-    console.log(`[audio_engineer] Overlaying: "${audio.title}"`);
+    console.log(`[audio_engineer] Downloading audio: "${audio.title}" (${audio.videoId})`);
     const audioPath = await downloadYTAudio(audio.videoId);
+    console.log(`[audio_engineer] Merging audio with video...`);
     finalPath = await mergeAudioVideo(silentPath, audioPath);
     audioId = audio.videoId;
     audioTitle = audio.title;
+    console.log(`[audio_engineer] ✓ Audio overlay complete: "${audioTitle}"`);
   } catch (err: any) {
-    console.log(`[audio_engineer] Audio overlay failed, using silent: ${err.message}`);
+    console.error(`[audio_engineer] ✗ Audio overlay failed, using silent video: ${err.message}`);
   }
 
   return {

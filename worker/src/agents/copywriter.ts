@@ -1,36 +1,75 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { createAgentLoop } from '../shared/agent-loop';
 import { CuratedPost } from '../shared/types';
 
-async function generateMetadata(igUsername: string, igCaption?: string) {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-  const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 500,
-    messages: [{
-      role: 'user',
-      content: `Create YouTube Short metadata for a flow arts video repost.
-Creator: @${igUsername} on Instagram
-Caption: ${igCaption || 'Flow arts performance'}
+// Template-based metadata generation (no external API needed)
+const ADJECTIVES = [
+  'Mesmerizing', 'Insane', 'Epic', 'Incredible', 'Hypnotic',
+  'Mind-Blowing', 'Unreal', 'Stunning', 'Breathtaking', 'Next-Level',
+  'Jaw-Dropping', 'Otherworldly', 'Electrifying', 'Wild', 'Unbelievable',
+];
 
-Return ONLY JSON: {"title":"<catchy title under 100 chars with emoji>","description":"<2-3 sentences, credit @${igUsername}, mention gwdf.pro>","hashtags":["<5 contextual hashtags from: flowarts,dance,edm,rave,hulahoop,poi,firedance,juggling,hooping,circus,festival,performance,firespinner,led,gloving>"]}`
-    }],
-  });
+const TYPES = [
+  'Flow Arts Performance', 'Spinning Session', 'Flow Routine',
+  'Performance', 'Skills', 'Moves', 'Flow', 'Tricks',
+];
 
-  const text = message.content[0].type === 'text' ? message.content[0].text : '';
-  return JSON.parse(text.match(/\{[\s\S]*\}/)![0]);
+const SUFFIXES = [
+  'Must Watch', 'Pure Fire', 'Festival Vibes', 'Flow State',
+  'INSANE', 'Wait For It', 'Goals', 'Next Level', 'So Satisfying',
+];
+
+const EMOJIS = ['🔥', '✨', '🌊', '💫', '🎪', '⚡', '🌀', '💜', '🎭', '🪩'];
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function generateTitle(): string {
+  const templates = [
+    () => `${pick(EMOJIS)} ${pick(ADJECTIVES)} ${pick(TYPES)} | ${pick(SUFFIXES)}`,
+    () => `${pick(EMOJIS)} This ${pick(TYPES)} Is On Another Level`,
+    () => `${pick(EMOJIS)} When Flow Arts Hit Different | ${pick(SUFFIXES)}`,
+    () => `${pick(EMOJIS)} You Won't Believe This ${pick(TYPES)}`,
+    () => `${pick(EMOJIS)} ${pick(ADJECTIVES)} ${pick(TYPES)} ${pick(EMOJIS)}`,
+  ];
+  const title = pick(templates)();
+  return title.length > 100 ? title.slice(0, 97) + '...' : title;
+}
+
+function generateDescription(permalink: string): string {
+  const intros = [
+    'This flow artist is absolutely incredible!',
+    'Pure flow state energy in this performance!',
+    'When the flow hits different... this is pure magic.',
+    'Absolutely mesmerizing performance that will leave you speechless.',
+    'Flow arts at its finest — watch this and try not to be amazed.',
+  ];
+  return `${pick(intros)}
+
+🌊 Discover more amazing flow arts at gwdf.pro
+
+Original: ${permalink}`;
+}
+
+const HASHTAG_POOL = [
+  'flowarts', 'dance', 'edm', 'rave', 'hulahoop', 'poi', 'firedance',
+  'juggling', 'hooping', 'circus', 'festival', 'performance', 'firespinner',
+  'led', 'gloving', 'shuffle', 'flow', 'spinning', 'shorts', 'viral',
+];
+
+function pickHashtags(count: number = 8): string[] {
+  const shuffled = [...HASHTAG_POOL].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
 }
 
 async function handlePost(post: CuratedPost) {
-  console.log(`[copywriter] Generating metadata for @${post.ig_username}`);
-  const metadata = await generateMetadata(post.ig_username, post.ig_permalink);
-  console.log(`[copywriter] Title: "${metadata.title}"`);
+  console.log(`[copywriter] Generating metadata for post ${post.id}`);
+  const title = generateTitle();
+  const description = generateDescription(post.ig_permalink);
+  const hashtags = pickHashtags(8);
+  console.log(`[copywriter] Title: "${title}"`);
 
-  return {
-    title: metadata.title,
-    description: metadata.description,
-    hashtags: metadata.hashtags,
-  };
+  return { title, description, hashtags };
 }
 
 export const copywriterAgent = createAgentLoop(

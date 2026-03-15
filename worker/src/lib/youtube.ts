@@ -73,9 +73,51 @@ export async function uploadToYouTube(
 export async function downloadYTAudio(videoId: string): Promise<string> {
   ensureTmpDir();
   const outputPath = `/tmp/flow-curation/${videoId}.mp3`;
-  execSync(
-    `yt-dlp -x --audio-format mp3 -o "${outputPath}" "https://youtube.com/shorts/${videoId}"`,
-    { timeout: 60000 }
-  );
+
+  // Update yt-dlp first (in case it's outdated)
+  try {
+    execSync('yt-dlp --update 2>&1 || true', { timeout: 30000 });
+  } catch {}
+
+  const cmd = [
+    'yt-dlp',
+    '-x',
+    '--audio-format mp3',
+    '--audio-quality 192K',
+    '--no-check-certificates',
+    '--force-overwrites',
+    '--no-playlist',
+    '--no-warnings',
+    `-o "${outputPath}"`,
+    `"https://www.youtube.com/watch?v=${videoId}"`,
+  ].join(' ');
+
+  console.log(`[youtube] Downloading audio: ${cmd}`);
+
+  try {
+    const result = execSync(cmd, { timeout: 120000, encoding: 'utf-8' });
+    console.log(`[youtube] yt-dlp output: ${result.slice(0, 500)}`);
+  } catch (err: any) {
+    console.error(`[youtube] yt-dlp failed:`, err.stderr?.slice(0, 500) || err.message);
+    throw new Error(`yt-dlp audio download failed: ${err.message}`);
+  }
+
+  if (!fs.existsSync(outputPath)) {
+    // yt-dlp sometimes appends extra extension
+    const altPath = outputPath.replace('.mp3', '.mp3.mp3');
+    if (fs.existsSync(altPath)) {
+      fs.renameSync(altPath, outputPath);
+    } else {
+      throw new Error(`Audio file not found at ${outputPath}`);
+    }
+  }
+
+  const size = fs.statSync(outputPath).size;
+  console.log(`[youtube] Downloaded audio: ${outputPath} (${size} bytes)`);
+
+  if (size < 1000) {
+    throw new Error(`Audio file too small (${size} bytes)`);
+  }
+
   return outputPath;
 }
