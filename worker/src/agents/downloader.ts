@@ -4,7 +4,7 @@ import { downloadFile, getVideoDuration } from '../lib/ffmpeg';
 import { getVideoUrl } from '../lib/instagram';
 
 const MIN_DURATION = 45;
-const MAX_DURATION = 59;
+const MAX_DURATION = 180; // 3 minutes — YouTube Shorts supports up to 3min
 
 async function handlePost(post: CuratedPost) {
   console.log(`[downloader] Downloading ${post.ig_permalink}`);
