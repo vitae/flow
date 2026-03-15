@@ -29,6 +29,7 @@ app.get('/health', (_req, res) => res.json({
     googleClient: !!process.env.GOOGLE_CLIENT_ID,
     youtubeApi: !!process.env.YOUTUBE_API_KEY,
     workerSecret: !!process.env.RAILWAY_WORKER_SECRET,
+    igSession: !!process.env.INSTAGRAM_SESSION_ID,
   }
 }));
 
