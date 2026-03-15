@@ -92,21 +92,28 @@ function timeAgo(dateStr: string): string {
 }
 
 /** Countdown until next run: interval - (now - lastActivity) */
-function getCountdown(agentId: string, lastActivityTime: string | undefined): string {
+function getCountdown(agentId: string, lastActivityTime: string | undefined): { label: string; nextRunTime: string } {
   const interval = AGENT_INTERVALS[agentId] || 10000;
-  if (!lastActivityTime) return 'WAITING';
+  if (!lastActivityTime) {
+    // No activity yet — show when next run would be based on interval from now
+    const nextRun = new Date(Date.now() + interval);
+    const nextRunStr = nextRun.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return { label: 'WAITING', nextRunTime: nextRunStr };
+  }
   const elapsed = Date.now() - new Date(lastActivityTime).getTime();
   const remaining = Math.max(0, interval - elapsed);
-  if (remaining === 0) return 'DUE NOW';
-  if (remaining < 60000) return `${Math.ceil(remaining / 1000)}s`;
+  const nextRun = new Date(Date.now() + remaining);
+  const nextRunStr = nextRun.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (remaining === 0) return { label: 'DUE NOW', nextRunTime: nextRunStr };
+  if (remaining < 60000) return { label: `${Math.ceil(remaining / 1000)}s`, nextRunTime: nextRunStr };
   if (remaining < 3600000) {
     const m = Math.floor(remaining / 60000);
     const s = Math.ceil((remaining % 60000) / 1000);
-    return `${m}m ${s}s`;
+    return { label: `${m}m ${s}s`, nextRunTime: nextRunStr };
   }
   const h = Math.floor(remaining / 3600000);
   const m = Math.floor((remaining % 3600000) / 60000);
-  return `${h}h ${m}m`;
+  return { label: `${h}h ${m}m`, nextRunTime: nextRunStr };
 }
 
 function getIntervalLabel(agentId: string): string {
@@ -300,7 +307,7 @@ function AgentTerminal({
   isActive: boolean;
   hasError: boolean;
   pulsePhase: number;
-  countdown: string;
+  countdown: { label: string; nextRunTime: string };
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastAct = activities[0];
@@ -379,65 +386,66 @@ function AgentTerminal({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-pixel text-sm tracking-wider" style={{ color: agent.color, textShadow: `0 0 8px ${agent.color}80` }}>
+            <span className="font-pixel text-base tracking-wider" style={{ color: agent.color, textShadow: `0 0 8px ${agent.color}80` }}>
               {agent.label}
             </span>
             {isActive && !hasError && (
               <div className="w-3 h-3 rounded-full animate-pulse" style={{ background: agent.color, boxShadow: `0 0 8px ${agent.color}` }} />
             )}
-            {hasError && <AlertTriangle className="w-4 h-4" style={{ color: '#FF0000' }} />}
+            {hasError && <AlertTriangle className="w-5 h-5" style={{ color: '#FF0000' }} />}
           </div>
-          <div className="font-mono text-xs text-flow-gray-400 mt-0.5">{agent.role}</div>
+          <div className="font-mono text-sm text-white mt-0.5">{agent.role}</div>
         </div>
 
         <Terminal className="w-5 h-5 flex-shrink-0" style={{ color: `${agent.color}40` }} />
       </div>
 
       {/* Thinking + Next + Countdown bar */}
-      <div className="px-5 py-3 border-b space-y-1.5" style={{ borderColor: `${agent.color}10`, background: `${agent.color}03` }}>
+      <div className="px-5 py-3 border-b space-y-2" style={{ borderColor: `${agent.color}10`, background: `${agent.color}03` }}>
         <div className="flex items-start gap-2">
-          <span className="font-pixel text-[9px] tracking-wider shrink-0 mt-0.5" style={{ color: `${agent.color}90` }}>THINK</span>
-          <span className="font-mono text-xs leading-snug" style={{ color: `${agent.color}DD` }}>{thinking}</span>
+          <span className="font-pixel text-[10px] tracking-wider shrink-0 mt-0.5" style={{ color: `${agent.color}` }}>THINK</span>
+          <span className="font-mono text-sm leading-snug" style={{ color: `${agent.color}` }}>{thinking}</span>
         </div>
         <div className="flex items-start gap-2">
-          <span className="font-pixel text-[9px] tracking-wider shrink-0 mt-0.5" style={{ color: '#00FF0090' }}>NEXT</span>
-          <span className="font-mono text-xs text-flow-gray-300 leading-snug flex items-center gap-1">
-            <ChevronRight className="w-3.5 h-3.5 inline flex-shrink-0" style={{ color: '#00FF0060' }} />
+          <span className="font-pixel text-[10px] tracking-wider shrink-0 mt-0.5" style={{ color: '#00FF00' }}>NEXT</span>
+          <span className="font-mono text-sm text-white leading-snug flex items-center gap-1">
+            <ChevronRight className="w-4 h-4 inline flex-shrink-0" style={{ color: '#00FF00' }} />
             {next}
           </span>
         </div>
         {/* Countdown timer */}
         <div className="flex items-center gap-2 pt-1">
-          <span className="font-pixel text-[9px] tracking-wider shrink-0" style={{ color: countdown === 'DUE NOW' ? '#00FF00' : `${agent.color}70` }}>
+          <span className="font-pixel text-[10px] tracking-wider shrink-0" style={{ color: countdown.label === 'DUE NOW' ? '#00FF00' : agent.color }}>
             TIMER
           </span>
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-3 flex-1">
             <span
-              className={`font-pixel text-sm tracking-wider ${countdown === 'DUE NOW' ? 'animate-pulse' : ''}`}
+              className={`font-pixel text-base tracking-wider ${countdown.label === 'DUE NOW' ? 'animate-pulse' : ''}`}
               style={{
-                color: countdown === 'DUE NOW' ? '#00FF00' : agent.color,
-                textShadow: countdown === 'DUE NOW' ? '0 0 10px #00FF00' : `0 0 6px ${agent.color}60`,
+                color: countdown.label === 'DUE NOW' ? '#00FF00' : agent.color,
+                textShadow: countdown.label === 'DUE NOW' ? '0 0 10px #00FF00' : `0 0 6px ${agent.color}60`,
               }}
             >
-              {countdown}
+              {countdown.label}
             </span>
-            <span className="font-mono text-[10px] text-flow-gray-600">({getIntervalLabel(agent.id)})</span>
+            <span className="font-mono text-sm text-white">@ {countdown.nextRunTime}</span>
+            <span className="font-mono text-xs text-white/50">({getIntervalLabel(agent.id)})</span>
           </div>
         </div>
       </div>
 
       {/* Terminal Log */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-3 space-y-0.5 font-mono text-xs leading-relaxed"
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-3 space-y-1 font-mono text-sm leading-relaxed"
         style={{ scrollbarWidth: 'thin', scrollbarColor: `${agent.color}30 transparent` }}>
         {logLines.length === 0 ? (
-          <div className="text-flow-gray-700 py-6 text-center">
-            <span className="font-pixel text-[10px] tracking-wider">NO ACTIVITY YET</span>
-            <div className="mt-2 text-sm text-flow-gray-800">Waiting for events...</div>
+          <div className="text-white/40 py-6 text-center">
+            <span className="font-pixel text-xs tracking-wider">NO ACTIVITY YET</span>
+            <div className="mt-2 text-base text-white/30">Waiting for events...</div>
           </div>
         ) : (
           logLines.map((line, i) => (
             <div key={i} style={{
-              color: line.dim ? `${line.color}90` : line.color,
+              color: line.dim ? '#FFFFFFCC' : line.color,
               textShadow: !line.dim ? `0 0 4px ${line.color}40` : 'none',
             }}>
               {line.text}
@@ -445,16 +453,16 @@ function AgentTerminal({
           ))
         )}
         <div className="flex items-center gap-1 mt-1">
-          <span style={{ color: `${agent.color}60` }}>$</span>
-          <span className="inline-block w-2.5 h-4 animate-pulse" style={{ background: `${agent.color}80` }} />
+          <span style={{ color: agent.color }}>$</span>
+          <span className="inline-block w-3 h-5 animate-pulse" style={{ background: `${agent.color}80` }} />
         </div>
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-2 border-t flex items-center justify-between" style={{ borderColor: `${agent.color}10`, background: `${agent.color}03` }}>
-        <span className="font-pixel text-[8px] tracking-widest" style={{ color: `${agent.color}50` }}>{activities.length} EVENTS</span>
-        {lastAct && <span className="font-pixel text-[8px] tracking-wider" style={{ color: isActive ? `${agent.color}80` : '#333' }}>LAST: {timeAgo(lastAct.created_at)}</span>}
-        <span className="font-pixel text-[8px] tracking-widest" style={{ color: isActive ? agent.color : '#333' }}>
+      <div className="px-5 py-2.5 border-t flex items-center justify-between" style={{ borderColor: `${agent.color}10`, background: `${agent.color}03` }}>
+        <span className="font-pixel text-[10px] tracking-widest" style={{ color: agent.color }}>{activities.length} EVENTS</span>
+        {lastAct && <span className="font-pixel text-[10px] tracking-wider" style={{ color: isActive ? agent.color : 'white' }}>LAST: {timeAgo(lastAct.created_at)}</span>}
+        <span className="font-pixel text-[10px] tracking-widest" style={{ color: isActive ? agent.color : hasError ? '#FF0000' : 'white' }}>
           {isActive ? 'ONLINE' : hasError ? 'ERROR' : 'IDLE'}
         </span>
       </div>
@@ -751,7 +759,7 @@ export default function SwarmDashboard() {
             <div className="flex items-center gap-3 mt-3">
               <GlowstickBar color="#00FF00" width="60px" />
               <GlowstickBar color="#FF00FF" width="36px" />
-              <span className="font-pixel text-[10px] text-flow-gray-400 uppercase tracking-[0.3em]">terminal view</span>
+              <span className="font-pixel text-xs text-white uppercase tracking-[0.3em]">terminal view</span>
               <GlowstickBar color="#FF00FF" width="36px" />
               <GlowstickBar color="#00FF00" width="60px" />
             </div>
@@ -766,22 +774,22 @@ export default function SwarmDashboard() {
                 { label: 'FAIL', value: failedCount, color: '#FF0000' },
               ].map(s => (
                 <div key={s.label} className="text-center">
-                  <div className="font-pixel text-2xl" style={{ color: s.color, textShadow: `0 0 10px ${s.color}60` }}>{s.value}</div>
-                  <div className="font-pixel text-[8px] tracking-widest mt-0.5" style={{ color: `${s.color}60` }}>{s.label}</div>
+                  <div className="font-pixel text-3xl" style={{ color: s.color, textShadow: `0 0 10px ${s.color}60` }}>{s.value}</div>
+                  <div className="font-pixel text-[10px] tracking-widest mt-0.5" style={{ color: s.color }}>{s.label}</div>
                 </div>
               ))}
             </div>
             <button
               onClick={() => setShowUpload(true)}
-              className="flex items-center gap-2 font-pixel text-[10px] px-4 py-3 rounded-xl transition-all hover:scale-105"
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
               style={{ background: 'rgba(0,255,0,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,0,0.3)', color: '#00FF00', textShadow: '0 0 6px #00FF0060' }}>
-              <UploadCloud className="w-4 h-4" />
+              <UploadCloud className="w-5 h-5" />
               UPLOAD
             </button>
             <button onClick={fetchData}
-              className="flex items-center gap-2 font-pixel text-[10px] px-4 py-3 rounded-xl text-flow-green transition-all hover:scale-105"
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl text-flow-green transition-all hover:scale-105"
               style={{ background: 'rgba(0,255,0,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,0,0.2)' }}>
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-5 h-5" />
               {lastRefresh.toLocaleTimeString()}
             </button>
           </div>
@@ -809,8 +817,8 @@ export default function SwarmDashboard() {
                   background: active ? `${stage.color}08` : 'transparent',
                   border: `1px solid ${active ? stage.color + '40' : 'transparent'}`,
                 }}>
-                  <span className="font-pixel text-base" style={{ color: active ? stage.color : '#222', textShadow: active ? `0 0 8px ${stage.color}` : 'none' }}>{count}</span>
-                  <span className="font-pixel text-[8px] tracking-wider whitespace-nowrap" style={{ color: active ? `${stage.color}90` : '#222' }}>{stage.label}</span>
+                  <span className="font-pixel text-lg" style={{ color: active ? stage.color : '#222', textShadow: active ? `0 0 8px ${stage.color}` : 'none' }}>{count}</span>
+                  <span className="font-pixel text-[10px] tracking-wider whitespace-nowrap" style={{ color: active ? stage.color : 'white' }}>{stage.label}</span>
                 </div>
                 {i < PIPELINE_STAGES.length - 1 && <ChevronRight className="w-4 h-4 mx-0.5 flex-shrink-0" style={{ color: '#1a1a1a' }} />}
               </div>
@@ -849,7 +857,7 @@ export default function SwarmDashboard() {
           {/* Support agents row */}
           <div className="flex items-center gap-3 mb-4">
             <div className="h-px flex-1" style={{ background: 'linear-gradient(90deg, transparent, #FF00FF20, transparent)' }} />
-            <span className="font-pixel text-[10px] tracking-widest" style={{ color: '#FF00FF60' }}>SUPPORT AGENTS</span>
+            <span className="font-pixel text-xs tracking-widest" style={{ color: '#FF00FF' }}>SUPPORT AGENTS</span>
             <div className="h-px flex-1" style={{ background: 'linear-gradient(90deg, transparent, #FF00FF20, transparent)' }} />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -872,7 +880,7 @@ export default function SwarmDashboard() {
 
         {/* ─── Recent Posts ───────────────────────────────────── */}
         <GlassCard borderColor="#FF00FF20" glowColor="#FF00FF">
-          <h2 className="font-pixel text-sm tracking-widest mb-4 flex items-center gap-2" style={{ color: '#FF00FF', textShadow: '0 0 8px #FF00FF' }}>
+          <h2 className="font-pixel text-base tracking-widest mb-4 flex items-center gap-2" style={{ color: '#FF00FF', textShadow: '0 0 8px #FF00FF' }}>
             {'>'} RECENT POSTS
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto pr-2">
@@ -883,16 +891,16 @@ export default function SwarmDashboard() {
               }}>
                 {getStatusIcon(post.status)}
                 <div className="flex-1 min-w-0">
-                  <div className="font-mono text-sm text-white truncate">{post.title || 'UNTITLED'}</div>
+                  <div className="font-mono text-base text-white truncate">{post.title || 'UNTITLED'}</div>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="font-pixel text-[8px] px-2 py-1 rounded-md tracking-wider" style={{
+                    <span className="font-pixel text-[10px] px-2 py-1 rounded-md tracking-wider" style={{
                       background: post.status === 'posted' ? '#00FF0010' : post.status === 'failed' ? '#FF000010' : '#ffffff06',
                       color: post.status === 'posted' ? '#00FF00' : post.status === 'failed' ? '#FF0000' : '#555',
                     }}>
                       {post.status.toUpperCase()}
                     </span>
-                    {post.ig_like_count > 0 && <span className="font-mono text-xs text-flow-gray-400">{post.ig_like_count.toLocaleString()}</span>}
-                    <span className="font-mono text-xs text-flow-gray-700">{timeAgo(post.created_at)}</span>
+                    {post.ig_like_count > 0 && <span className="font-mono text-sm text-white">{post.ig_like_count.toLocaleString()}</span>}
+                    <span className="font-mono text-sm text-white/70">{timeAgo(post.created_at)}</span>
                   </div>
                   {post.error_message && (
                     <div className="font-mono text-xs text-flow-red mt-1.5 truncate">{post.error_message}</div>
@@ -900,15 +908,15 @@ export default function SwarmDashboard() {
                   <div className="flex items-center gap-3 mt-1.5">
                     {post.youtube_video_id && (
                       <a href={`https://youtube.com/shorts/${post.youtube_video_id}`} target="_blank" rel="noopener noreferrer"
-                        className="font-pixel text-[8px] tracking-wider flex items-center gap-1 hover:underline" style={{ color: '#FF0000' }}>
-                        YT <ExternalLink className="w-3 h-3" />
+                        className="font-pixel text-[10px] tracking-wider flex items-center gap-1 hover:underline" style={{ color: '#FF0000' }}>
+                        YT <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     )}
-                    {post.ig_reels_id && <span className="font-pixel text-[8px]" style={{ color: '#FF00FF' }}>IG</span>}
-                    {post.fb_reels_id && <span className="font-pixel text-[8px]" style={{ color: '#0088FF' }}>FB</span>}
+                    {post.ig_reels_id && <span className="font-pixel text-[10px]" style={{ color: '#FF00FF' }}>IG</span>}
+                    {post.fb_reels_id && <span className="font-pixel text-[10px]" style={{ color: '#0088FF' }}>FB</span>}
                     <a href={post.ig_permalink} target="_blank" rel="noopener noreferrer"
-                      className="font-pixel text-[8px] text-flow-gray-600 hover:text-flow-cyan tracking-wider flex items-center gap-1 ml-auto">
-                      SRC <ExternalLink className="w-3 h-3" />
+                      className="font-pixel text-[10px] text-white/50 hover:text-flow-cyan tracking-wider flex items-center gap-1 ml-auto">
+                      SRC <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   </div>
                 </div>
@@ -930,8 +938,8 @@ export default function SwarmDashboard() {
           <GlowstickBar color="#FF00FF" width="10px" />
         </div>
         <div className="text-center pb-4">
-          <span className="font-pixel text-[9px] tracking-[0.3em]" style={{ color: '#333' }}>
-            FLOW AI AGENT SWARM v7 // TERMINAL EDITION
+          <span className="font-pixel text-xs tracking-[0.3em]" style={{ color: 'white' }}>
+            FLOW AI AGENT SWARM v8 // TERMINAL EDITION
           </span>
         </div>
       </div>
