@@ -7,7 +7,7 @@ import { logActivity } from '../shared/activity-log';
 import { sendPostNotification } from '../lib/email';
 
 const MAX_DAILY_UPLOADS = 8;
-const POLL_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours between uploads
+const POLL_INTERVAL_MS = 60 * 1000; // Check every 60s, publish immediately when ready (8/day cap)
 
 async function getDailyUploadCount(): Promise<number> {
   const today = new Date().toISOString().split('T')[0];

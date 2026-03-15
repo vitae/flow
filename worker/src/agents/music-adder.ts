@@ -4,7 +4,7 @@ import { getSupabase } from '../shared/supabase';
 import { getStoredCookies } from './cookie-refresher';
 import crypto from 'crypto';
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const POLL_INTERVAL_MS = 30 * 1000; // 30 seconds — react quickly to new videos
 const MUSIC_QUERIES = [
   'most popular', 'trending', 'viral',
   'popular edm', 'top hits', 'trending 2025',

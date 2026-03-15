@@ -57,13 +57,13 @@ const SUPPORT_AGENTS = ['music_adder', 'cookie_refresher'];
 
 /** Interval in ms between each agent's runs */
 const AGENT_INTERVALS: Record<string, number> = {
-  scout: 6 * 60 * 60 * 1000,        // 6 hours
+  scout: 6 * 60 * 60 * 1000,        // 6 hours (IG API rate limit)
   downloader: 10 * 1000,             // 10 seconds (reactive)
   audio_engineer: 10 * 1000,         // 10 seconds (reactive)
   editor: 10 * 1000,                 // 10 seconds (reactive)
   copywriter: 10 * 1000,             // 10 seconds (reactive)
-  publisher: 3 * 60 * 60 * 1000,     // 3 hours
-  music_adder: 5 * 60 * 1000,        // 5 minutes
+  publisher: 60 * 1000,              // 60 seconds (reactive, 8/day cap)
+  music_adder: 30 * 1000,            // 30 seconds (reactive)
   cookie_refresher: 45 * 60 * 1000,  // 45 minutes
 };
 
@@ -187,7 +187,7 @@ function getThinking(agentId: string, lastAct: Activity | undefined): { thinking
       _default: { thinking: 'Waiting for edited videos...', next: 'Poll edited queue' },
     },
     publisher: {
-      published: { thinking: 'Content live on all platforms!', next: 'Wait 3h for next slot' },
+      published: { thinking: 'Content live on all platforms!', next: 'Check for next ready video (8/day cap)' },
       processing: { thinking: 'Uploading to YouTube Shorts...', next: 'Post to IG & FB Reels' },
       _default: { thinking: 'Checking metadata_ready queue...', next: 'Upload highest viral first' },
     },
