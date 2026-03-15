@@ -14,7 +14,13 @@ export async function GET(request: Request) {
   const supabase = createServerClient();
 
   // 1. Discover viral videos
-  const videos = await discoverViralVideos();
+  let videos;
+  try {
+    videos = await discoverViralVideos();
+  } catch (err: any) {
+    console.error('Discovery failed:', err.message);
+    return NextResponse.json({ error: 'Discovery failed', detail: err.message }, { status: 500 });
+  }
   if (videos.length === 0) {
     return NextResponse.json({ message: 'No new videos found' });
   }

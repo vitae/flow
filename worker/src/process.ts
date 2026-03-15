@@ -66,8 +66,9 @@ export async function processAllPending() {
     try {
       await supabase.from('curated_posts').update({ status: 'processing' }).eq('id', post.id);
 
-      // 1. Download IG video
-      const videoPath = await downloadFile(post.ig_media_url, `${post.ig_media_id}.mp4`);
+      // 1. Download IG video via permalink (media_url not available from hashtag search)
+      const downloadUrl = post.ig_media_url || post.ig_permalink;
+      const videoPath = await downloadFile(downloadUrl, `${post.ig_media_id}.mp4`);
 
       // 2. Strip audio
       const silentPath = await stripAudio(videoPath);

@@ -12,10 +12,28 @@ export function ensureTmpDir() {
 export async function downloadFile(url: string, filename: string): Promise<string> {
   ensureTmpDir();
   const filepath = path.join(TMP_DIR, filename);
+
+  // If it's an Instagram permalink, use yt-dlp to download
+  if (url.includes('instagram.com')) {
+    return downloadWithYtDlp(url, filepath);
+  }
+
   const res = await fetch(url);
   const buffer = Buffer.from(await res.arrayBuffer());
   fs.writeFileSync(filepath, buffer);
   return filepath;
+}
+
+async function downloadWithYtDlp(igUrl: string, outputPath: string): Promise<string> {
+  const { execSync } = require('child_process');
+  execSync(
+    `yt-dlp -f "best[ext=mp4]" --no-check-certificates -o "${outputPath}" "${igUrl}"`,
+    { timeout: 120000, stdio: 'pipe' }
+  );
+  if (!fs.existsSync(outputPath)) {
+    throw new Error(`yt-dlp failed to download: ${igUrl}`);
+  }
+  return outputPath;
 }
 
 export async function stripAudio(inputPath: string): Promise<string> {
