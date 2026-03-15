@@ -24,6 +24,7 @@ const tiers = [
   {
     name: 'Starter',
     price: '$9.99',
+    subtitle: 'Perfect for flow artists just starting to build an audience',
     badge: null,
     badgeClass: '',
     priceClass: 'text-flow-green',
@@ -31,58 +32,79 @@ const tiers = [
     borderClass: 'glass-card',
     btnClass: 'btn-secondary',
     btnText: 'Start Free Trial',
+    paymentUrl: 'https://buy.stripe.com/cNi5kFacz1COax8fxCejK00',
+    highlight: 'Save 20+ hours/month on video editing',
     features: [
-      '5 videos / month',
-      'Auto AI captions',
-      '2 platforms',
-      'Basic hashtags',
-      'Standard processing',
+      '10 videos / month',
+      'Auto AI captions on every video',
+      '2 platforms (YouTube + Instagram)',
+      'Basic hashtag suggestions',
+      'Standard processing speed',
+      'Community music library (1K+ tracks)',
+      'Basic video analytics',
+      'Flow artist profile page',
       'Email support',
     ],
   },
   {
     name: 'Pro',
     price: '$19.99',
+    subtitle: 'For serious flow artists ready to grow & monetize',
     badge: 'MOST POPULAR',
     badgeClass: 'bg-flow-magenta/10 text-flow-magenta border-flow-magenta/20',
     priceClass: 'text-flow-magenta',
     checkClass: 'text-flow-magenta',
     borderClass: 'glass-card-magenta border-flow-magenta/30',
     btnClass: 'btn-magenta',
-    btnText: 'Go Pro',
+    btnText: 'Go Pro — 7 Days Free',
+    paymentUrl: 'https://buy.stripe.com/14A3cx5WjftEcFgdpuejK01',
+    highlight: 'Everything in Starter, plus:',
     features: [
-      '25 videos / month',
-      'Auto AI captions',
-      'All 4 platforms',
-      'Trending music library',
-      'Smart hashtags + trending tags',
-      'Priority processing',
-      'Analytics dashboard',
-      'Promo Boost (1x/month)',
+      '50 videos / month',
+      'AI captions + custom styles & colors',
+      'All 4 platforms (YouTube, IG, FB, Threads)',
+      'Trending music library (10K+ tracks)',
+      'AI hashtags + trending tags per platform',
+      'Priority processing (2x faster)',
+      'Scheduled posting & smart queue',
+      'Performance analytics dashboard',
+      'Promo Boost — we repost you (2x/month)',
+      'AI thumbnail generator',
+      'Festival & gig discovery feed',
+      'Brand partnership opportunities',
+      'Priority email + chat support',
     ],
   },
   {
     name: 'Unlimited',
     price: '$29.99',
+    subtitle: 'For pros, teams & brands who want maximum reach',
     badge: 'BEST VALUE',
     badgeClass: 'bg-flow-yellow/10 text-flow-yellow border-flow-yellow/20',
     priceClass: 'text-flow-yellow',
     checkClass: 'text-flow-yellow',
     borderClass: 'glass-card border-flow-yellow/30',
     btnClass: 'btn-primary',
-    btnText: 'Go Unlimited',
+    btnText: 'Go Unlimited — 7 Days Free',
+    paymentUrl: 'https://buy.stripe.com/28EcN70BZ3KW7kW4SYejK02',
+    highlight: 'Everything in Pro, plus:',
     features: [
-      'Unlimited videos',
-      'Auto AI captions',
-      'All 4 platforms + future platforms',
-      'Full trending music library',
-      'AI hashtags + custom hashtag sets',
-      'Fastest priority processing',
-      'Advanced analytics + insights',
-      'Promo Boost (4x/month)',
+      'Unlimited videos — post as much as you want',
+      'AI captions + custom fonts & animations',
+      'All platforms + early access (TikTok, X coming)',
+      'Full music library + upload your own audio',
+      'AI hashtags + competitor analysis + viral trends',
+      'Fastest processing (5x faster)',
+      'Smart scheduling — AI picks best time to post',
+      'Advanced analytics + audience growth insights',
+      'Promo Boost — we repost you (8x/month)',
+      'AI thumbnail + cover image generator',
+      'Custom branding, watermarks & intro/outro',
+      'Multi-account support (up to 5 brands)',
+      'Team collaboration (3 seats included)',
+      'Featured on GWDF.pro community spotlight',
+      'API access for custom automation',
       'Dedicated account manager',
-      'Custom branding & watermarks',
-      'API access',
     ],
   },
 ];
@@ -239,16 +261,21 @@ export default function HomePage() {
                   </div>
                 )}
 
-                <h3 className="font-display font-bold text-xl mb-2">{tier.name}</h3>
+                <h3 className="font-display font-bold text-xl mb-1">{tier.name}</h3>
+                <p className="text-xs text-flow-gray-400 mb-3">{tier.subtitle}</p>
                 <p className="mb-1">
                   <span className={`text-4xl font-display font-black ${tier.priceClass}`}>
                     {tier.price}
                   </span>
                   <span className="text-sm text-flow-gray-400">/mo</span>
                 </p>
-                <p className="text-xs text-flow-gray-500 mb-6">Billed monthly. Cancel anytime.</p>
+                <p className="text-xs text-flow-gray-500 mb-4">Billed monthly. Cancel anytime.</p>
 
-                <ul className="text-left text-sm text-flow-gray-300 space-y-3 mb-8 flex-1">
+                <div className={`text-xs font-medium ${tier.priceClass} bg-black/30 rounded-lg px-3 py-2 mb-5 text-center`}>
+                  {tier.highlight}
+                </div>
+
+                <ul className="text-left text-sm text-flow-gray-300 space-y-2.5 mb-8 flex-1">
                   {tier.features.map((feat) => (
                     <li key={feat} className="flex items-start gap-2.5">
                       <Check className={`w-4 h-4 ${tier.checkClass} mt-0.5 shrink-0`} />
@@ -257,9 +284,9 @@ export default function HomePage() {
                   ))}
                 </ul>
 
-                <Link href="/auth/login" className={`${tier.btnClass} w-full text-center`}>
+                <a href={tier.paymentUrl} className={`${tier.btnClass} w-full text-center`}>
                   {tier.btnText}
-                </Link>
+                </a>
               </motion.div>
             ))}
           </div>
@@ -284,27 +311,48 @@ export default function HomePage() {
               <div className="text-center shrink-0">
                 <p className="text-4xl font-display font-black text-flow-cyan mb-1">$5</p>
                 <p className="text-xs text-flow-gray-500 mb-3">one-time</p>
-                <Link
-                  href="/auth/login"
+                <a
+                  href="https://buy.stripe.com/7sY00lfwTftEfRs2KQejK03"
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm bg-flow-cyan/10 text-flow-cyan border border-flow-cyan/20 hover:bg-flow-cyan/20 transition-all"
                 >
                   Upload Now
-                </Link>
+                </a>
               </div>
             </div>
           </motion.div>
 
-          {/* Social proof */}
+          {/* Social proof + urgency */}
           <motion.div
             className="mt-16 text-center"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
           >
+            <div className="glass-card border-flow-green/20 p-6 max-w-2xl mx-auto mb-8">
+              <p className="text-flow-green font-display font-semibold text-sm mb-2">
+                Why flow artists love Flow AI
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-display font-black text-flow-green">20+</p>
+                  <p className="text-xs text-flow-gray-400">Hours saved per month</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-display font-black text-flow-magenta">4x</p>
+                  <p className="text-xs text-flow-gray-400">More reach across platforms</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-display font-black text-flow-yellow">10x</p>
+                  <p className="text-xs text-flow-gray-400">Faster content distribution</p>
+                </div>
+              </div>
+            </div>
             <p className="text-flow-gray-400 text-sm mb-4">
-              Join flow artists, content creators, and social media managers who save hours every week
+              Stop spending hours editing, captioning, and posting manually.
+              <br />
+              <span className="text-white font-medium">Upload once — reach billions.</span>
             </p>
-            <div className="flex items-center justify-center gap-8 text-flow-gray-500 text-xs">
+            <div className="flex flex-wrap items-center justify-center gap-8 text-flow-gray-500 text-xs">
               <div className="flex items-center gap-2">
                 <Rocket className="w-4 h-4 text-flow-magenta" />
                 <span>10x faster distribution</span>
