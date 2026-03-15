@@ -2,18 +2,17 @@ import crypto from 'crypto';
 import { getSupabase } from '../shared/supabase';
 
 // Exactly 30 hashtags — the IG API allows 30 unique hashtags per 7-day rolling window.
-// We cycle through all 30 over the week: 4/day for 7 days = 28, then 2 repeat on day 8.
+// Ordered by reach: biggest hashtags first (billions of posts) to find the most viral content.
 const VIRAL_HASHTAGS = [
-  // Flow arts & performance (our core niche)
-  'hulahoop', 'flowarts', 'poi', 'juggling', 'buugeng',
-  'gloving', 'firespinner', 'leviwand', 'hooping', 'contactjuggling',
-  // Rave & music culture
-  'edm', 'rave', 'festival', 'plur', 'dj',
-  'ravefashion', 'techno', 'bassmusic', 'dubstep', 'edmfamily',
-  // Viral amplifiers (to find the biggest posts in our niche)
-  'viral', 'viralreels', 'trending', 'explorepage', 'fyp',
-  // Dance & action
-  'dance', 'shuffle', 'parkour', 'skateboarding', 'martialarts',
+  // Massive reach (1B+ posts) — these surface the most-viewed content on IG
+  'viral', 'trending', 'explore', 'reels', 'fyp',
+  'funny', 'dance', 'music', 'love', 'instagood',
+  // High reach (100M+ posts) — entertainment & talent
+  'satisfying', 'comedy', 'memes', 'amazing', 'wow',
+  'talent', 'skills', 'edm', 'rave', 'festival',
+  // Niche viral (10M+ posts) — our core audience
+  'flowarts', 'hulahoop', 'poi', 'juggling', 'dj',
+  'shuffledance', 'firespinner', 'gloving', 'parkour', 'skateboarding',
 ];
 // 4 hashtags/day × 7 days = 28 unique per week (under the 30 limit)
 const HASHTAGS_PER_DAY = 4;
@@ -33,6 +32,7 @@ export interface IGMedia {
   media_type: string;
   permalink: string;
   like_count: number;
+  comments_count: number;
   caption: string;
   timestamp: string;
 }
@@ -64,7 +64,7 @@ export async function searchHashtag(hashtag: string, token: string, igUserId: st
   const hashtagId = searchData.data[0].id;
   // Use top_media (most popular) instead of recent_media (most recent)
   const mediaRes = await fetch(
-    `https://graph.facebook.com/v21.0/${hashtagId}/top_media?user_id=${igUserId}&fields=id,media_type,permalink,like_count,caption,timestamp&access_token=${token}&appsecret_proof=${proof}`
+    `https://graph.facebook.com/v21.0/${hashtagId}/top_media?user_id=${igUserId}&fields=id,media_type,permalink,like_count,comments_count,caption,timestamp&access_token=${token}&appsecret_proof=${proof}`
   );
   const mediaData = await mediaRes.json();
   if (mediaData.error) {

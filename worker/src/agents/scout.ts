@@ -19,10 +19,16 @@ async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
   const videos = await searchHashtag(hashtag, token, igUserId);
   if (!videos.length) return { hashtag, queued: 0 };
 
-  // Filter for viral videos
-  let viral = videos.filter(v => (v.like_count || 0) >= MIN_LIKES_FOR_VIRAL);
+  // Engagement score = likes + (comments × 10) — comments signal high-view content
+  const scored = videos.map(v => ({
+    ...v,
+    engagementScore: (v.like_count || 0) + (v.comments_count || 0) * 10,
+  }));
+
+  // Filter for viral videos by engagement
+  let viral = scored.filter(v => v.engagementScore >= MIN_LIKES_FOR_VIRAL);
   if (!viral.length) {
-    viral = videos.filter(v => (v.like_count || 0) >= MIN_LIKES_FALLBACK);
+    viral = scored.filter(v => v.engagementScore >= MIN_LIKES_FALLBACK);
   }
   if (!viral.length) return { hashtag, queued: 0 };
 
@@ -40,9 +46,9 @@ async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
     return { hashtag, queued: 0 };
   }
 
-  // Queue new videos sorted by likes (best first)
+  // Queue new videos sorted by engagement score (most viral first)
   const toQueue = newVideos
-    .sort((a, b) => (b.like_count || 0) - (a.like_count || 0))
+    .sort((a, b) => b.engagementScore - a.engagementScore)
     .slice(0, 5);
 
   const rows = toQueue.map(v => {
@@ -59,7 +65,7 @@ async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
   });
 
   await supabase.from('curated_posts').insert(rows);
-  console.log(`[scout] #${hashtag}: queued ${rows.length} new videos (top: ${toQueue[0].like_count?.toLocaleString()} likes)`);
+  console.log(`[scout] #${hashtag}: queued ${rows.length} new videos (top: ${toQueue[0].like_count?.toLocaleString()} likes, ${toQueue[0].comments_count || 0} comments, score: ${toQueue[0].engagementScore.toLocaleString()})`);
   return { hashtag, queued: rows.length };
 }
 
