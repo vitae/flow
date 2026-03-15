@@ -4,17 +4,16 @@ import { getSupabase } from '../shared/supabase';
 // Exactly 30 hashtags — the IG API allows 30 unique hashtags per 7-day rolling window.
 // We cycle through all 30 over the week: 4/day for 7 days = 28, then 2 repeat on day 8.
 const VIRAL_HASHTAGS = [
-  // Mega viral (highest engagement)
-  'viral', 'viralvideo', 'trending', 'explorepage', 'reels',
-  'fyp', 'foryou', 'instagood', 'viralreels', 'trendingreels',
-  // Entertainment
-  'funny', 'funnyvideos', 'satisfying', 'oddlysatisfying', 'amazing',
-  // Skills & talent
-  'talent', 'skills', 'nextlevel', 'mindblowing', 'incredible',
-  // Dance & music
-  'dance', 'dancer', 'edm', 'rave', 'festival',
-  // Sports & action
-  'parkour', 'skateboarding', 'surfing', 'fitness', 'extreme',
+  // Flow arts & performance (our core niche)
+  'hulahoop', 'flowarts', 'poi', 'juggling', 'buugeng',
+  'gloving', 'firespinner', 'leviwand', 'hooping', 'contactjuggling',
+  // Rave & music culture
+  'edm', 'rave', 'festival', 'plur', 'dj',
+  'ravefashion', 'techno', 'bassmusic', 'dubstep', 'edmfamily',
+  // Viral amplifiers (to find the biggest posts in our niche)
+  'viral', 'viralreels', 'trending', 'explorepage', 'fyp',
+  // Dance & action
+  'dance', 'shuffle', 'parkour', 'skateboarding', 'martialarts',
 ];
 // 4 hashtags/day × 7 days = 28 unique per week (under the 30 limit)
 const HASHTAGS_PER_DAY = 4;
