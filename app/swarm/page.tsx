@@ -273,6 +273,52 @@ function GlassOrb({ color, isActive }: { color: string; isActive: boolean }) {
   );
 }
 
+/* ── Flower of Life Loader ──────────────────────────────────── */
+function FlowerOfLifeLoader() {
+  const PLUR = ['#00FF00', '#FF00FF', '#00FFFF', '#FFFF00', '#FF0000', '#FF8800', '#00FF88'];
+  const R = 28; // circle radius
+  const CX = 80; // center x
+  const CY = 80; // center y
+
+  // 7 circles: 1 center + 6 surrounding at 60° intervals
+  const circles: { cx: number; cy: number }[] = [{ cx: CX, cy: CY }];
+  for (let i = 0; i < 6; i++) {
+    const angle = (i * 60 * Math.PI) / 180;
+    circles.push({ cx: CX + R * Math.cos(angle), cy: CY + R * Math.sin(angle) });
+  }
+
+  return (
+    <div className="w-40 h-40 relative">
+      <svg viewBox="0 0 160 160" className="w-full h-full">
+        {circles.map((c, i) => (
+          <circle
+            key={i}
+            cx={c.cx}
+            cy={c.cy}
+            r={R}
+            fill="none"
+            strokeWidth={1.5}
+            stroke={PLUR[i % PLUR.length]}
+            strokeDasharray={`${2 * Math.PI * R}`}
+            strokeDashoffset={`${2 * Math.PI * R}`}
+            style={{
+              animation: `flower-draw 2s ease-in-out ${i * 0.2}s infinite`,
+              filter: `drop-shadow(0 0 4px ${PLUR[i % PLUR.length]}) drop-shadow(0 0 8px ${PLUR[i % PLUR.length]}60)`,
+            }}
+          />
+        ))}
+      </svg>
+      <style>{`
+        @keyframes flower-draw {
+          0% { stroke-dashoffset: ${2 * Math.PI * R}; opacity: 0.3; }
+          50% { stroke-dashoffset: 0; opacity: 1; }
+          100% { stroke-dashoffset: ${-(2 * Math.PI * R)}; opacity: 0.3; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 /* ── Glass UI ───────────────────────────────────────────────── */
 function GlowstickBar({ color, width }: { color: string; width: string }) {
   return (
@@ -828,7 +874,7 @@ export default function SwarmDashboard() {
   if (loading || !data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-6 bg-black">
-        <div className="w-20 h-20 border-2 border-flow-green rounded-lg animate-spin" style={{ boxShadow: '0 0 30px #00FF0060' }} />
+        <FlowerOfLifeLoader />
         <span className="font-pixel text-base" style={{ color: '#00FF00', textShadow: '0 0 10px #00FF00' }}>
           INITIALIZING SWARM...
         </span>
