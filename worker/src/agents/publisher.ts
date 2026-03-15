@@ -3,7 +3,7 @@ import { uploadToYouTube } from '../lib/youtube';
 import { cleanup } from '../lib/ffmpeg';
 import { getSupabase } from '../shared/supabase';
 
-const MAX_DAILY_UPLOADS = 5;
+const MAX_DAILY_UPLOADS = 10;
 const POLL_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes between uploads
 
 async function getDailyUploadCount(): Promise<number> {
