@@ -34,4 +34,4 @@ app.get('/health', (_req, res) => res.json({
 }));
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Worker listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`Worker v2 listening on port ${PORT}`));
