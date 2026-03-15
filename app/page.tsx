@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
@@ -8,7 +8,7 @@ import {
   Upload, Sparkles, Music, Hash, Share2, Zap, ArrowRight, Check,
   Crown, Rocket, Users, Globe, TrendingUp, DollarSign, Radio,
   MessageCircle, Calendar, Flame, Play, Star, Mic2, MapPin, ChevronRight,
-  Paintbrush, Monitor, Droplets
+  Paintbrush, Monitor, Droplets, Film, X
 } from 'lucide-react';
 
 const CheckoutModal = dynamic(() => import('@/components/CheckoutModal'), { ssr: false });
@@ -129,6 +129,31 @@ export default function HomePage() {
     planPrice: string;
     accentColor: string;
   } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUploadAndPay = () => {
+    if (!selectedFile) return;
+    setCheckout({
+      priceId: 'price_1TBAsnQQiXDm8D55pjw0lJxH',
+      mode: 'payment',
+      planName: 'Single Video Upload',
+      planPrice: '$5',
+      accentColor: '#00FFFF',
+    });
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   return (
     <main className="min-h-screen">
@@ -839,39 +864,83 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* One-time upload */}
+          {/* Single Video Upload with File Picker */}
           <motion.div
             className="mt-10 max-w-2xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="glass-card border-flow-cyan/20 p-6 flex flex-col md:flex-row items-center gap-6 hover:border-flow-cyan/40 transition-all">
-              <div className="flex-1 text-center md:text-left">
-                <div className="inline-block bg-flow-cyan/10 text-flow-cyan text-xs font-semibold px-3 py-1 rounded-full mb-2">
+            <div className="glass-card border-flow-cyan/20 p-8 hover:border-flow-cyan/40 transition-all">
+              <div className="text-center mb-6">
+                <div className="inline-block bg-flow-cyan/10 text-flow-cyan text-xs font-semibold px-3 py-1 rounded-full mb-3">
                   PAY PER VIDEO
                 </div>
                 <h3 className="font-display font-bold text-xl mb-1">Single Video Upload</h3>
                 <p className="text-sm text-flow-gray-300">
-                  Upload one video → AI captions, music & hashtags → posted to all platforms. No subscription needed.
+                  Select your video → pay $5 → AI adds captions, trending music & hashtags → posted to all platforms.
                 </p>
               </div>
-              <div className="text-center shrink-0">
-                <p className="text-4xl font-display font-black text-flow-cyan mb-1">$5</p>
-                <p className="text-xs text-flow-gray-500 mb-3">one-time</p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="video/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
+              {!selectedFile ? (
                 <button
-                  onClick={() => setCheckout({
-                    priceId: 'price_1TBAsnQQiXDm8D55pjw0lJxH',
-                    mode: 'payment',
-                    planName: 'Single Video Upload',
-                    planPrice: '$5',
-                    accentColor: '#00FFFF',
-                  })}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm bg-flow-cyan/10 text-flow-cyan border border-flow-cyan/20 hover:bg-flow-cyan/20 transition-all cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full rounded-xl border-2 border-dashed border-flow-cyan/30 bg-flow-cyan/5 hover:bg-flow-cyan/10 hover:border-flow-cyan/50 transition-all py-10 cursor-pointer group"
                 >
-                  Upload Now
+                  <Upload className="w-10 h-10 text-flow-cyan/60 mx-auto mb-3 group-hover:text-flow-cyan transition-colors" />
+                  <p className="font-display font-semibold text-flow-cyan mb-1">Choose your video</p>
+                  <p className="text-xs text-flow-gray-500">MP4, MOV, or WebM · Max 1 minute</p>
                 </button>
-              </div>
+              ) : (
+                <div className="rounded-xl border border-flow-cyan/30 bg-flow-cyan/5 p-5">
+                  <div className="flex items-center gap-4 mb-5">
+                    <div className="w-14 h-14 rounded-lg bg-flow-cyan/10 border border-flow-cyan/20 flex items-center justify-center shrink-0">
+                      <Film className="w-7 h-7 text-flow-cyan" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                      <p className="text-xs text-flow-gray-500">{formatFileSize(selectedFile.size)}</p>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-flow-gray-400 hover:text-white hover:bg-flow-gray-800 transition-all shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex-1 space-y-1.5">
+                      {['AI captions added', 'Trending music matched', 'Hashtags optimized', 'Posted to all platforms'].map((step) => (
+                        <div key={step} className="flex items-center gap-2 text-xs text-flow-gray-300">
+                          <Check className="w-3 h-3 text-flow-cyan shrink-0" />
+                          {step}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-center shrink-0">
+                      <p className="text-3xl font-display font-black text-flow-cyan">$5</p>
+                      <p className="text-[10px] text-flow-gray-500">one-time</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleUploadAndPay}
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-display font-bold text-sm bg-flow-cyan text-black hover:bg-flow-cyan/90 transition-all shadow-lg shadow-flow-cyan/20 cursor-pointer"
+                  >
+                    <Rocket className="w-4 h-4" />
+                    Upload & Pay $5
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
 
