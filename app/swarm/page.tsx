@@ -54,6 +54,18 @@ const AGENTS = [
 const PIPELINE_AGENTS = ['scout', 'downloader', 'audio_engineer', 'editor', 'copywriter', 'publisher'];
 const SUPPORT_AGENTS = ['music_adder', 'cookie_refresher'];
 
+/** Interval in ms between each agent's runs */
+const AGENT_INTERVALS: Record<string, number> = {
+  scout: 6 * 60 * 60 * 1000,        // 6 hours
+  downloader: 10 * 1000,             // 10 seconds (reactive)
+  audio_engineer: 10 * 1000,         // 10 seconds (reactive)
+  editor: 10 * 1000,                 // 10 seconds (reactive)
+  copywriter: 10 * 1000,             // 10 seconds (reactive)
+  publisher: 3 * 60 * 60 * 1000,     // 3 hours
+  music_adder: 5 * 60 * 1000,        // 5 minutes
+  cookie_refresher: 45 * 60 * 1000,  // 45 minutes
+};
+
 const PIPELINE_STAGES = [
   { status: 'pending', label: 'PEND', color: '#444' },
   { status: 'downloading', label: 'DWNL', color: '#00FFFF' },
@@ -76,6 +88,31 @@ function timeAgo(dateStr: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
+}
+
+/** Countdown until next run: interval - (now - lastActivity) */
+function getCountdown(agentId: string, lastActivityTime: string | undefined): string {
+  const interval = AGENT_INTERVALS[agentId] || 10000;
+  if (!lastActivityTime) return 'WAITING';
+  const elapsed = Date.now() - new Date(lastActivityTime).getTime();
+  const remaining = Math.max(0, interval - elapsed);
+  if (remaining === 0) return 'DUE NOW';
+  if (remaining < 60000) return `${Math.ceil(remaining / 1000)}s`;
+  if (remaining < 3600000) {
+    const m = Math.floor(remaining / 60000);
+    const s = Math.ceil((remaining % 60000) / 1000);
+    return `${m}m ${s}s`;
+  }
+  const h = Math.floor(remaining / 3600000);
+  const m = Math.floor((remaining % 3600000) / 60000);
+  return `${h}h ${m}m`;
+}
+
+function getIntervalLabel(agentId: string): string {
+  const ms = AGENT_INTERVALS[agentId] || 10000;
+  if (ms < 60000) return `every ${ms / 1000}s`;
+  if (ms < 3600000) return `every ${ms / 60000}m`;
+  return `every ${ms / 3600000}h`;
 }
 
 function ts(dateStr: string): string {
@@ -255,13 +292,14 @@ function GlassCard({ children, borderColor = '#00FF0030', glowColor = '#00FF00',
 
 /* ── Agent Terminal Card ────────────────────────────────────── */
 function AgentTerminal({
-  agent, activities, isActive, hasError, pulsePhase,
+  agent, activities, isActive, hasError, pulsePhase, countdown,
 }: {
   agent: typeof AGENTS[number];
   activities: Activity[];
   isActive: boolean;
   hasError: boolean;
-  pulsePhase: number; // 0-1 for directional pulse timing
+  pulsePhase: number;
+  countdown: string;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastAct = activities[0];
@@ -354,7 +392,7 @@ function AgentTerminal({
         <Terminal className="w-5 h-5 flex-shrink-0" style={{ color: `${agent.color}40` }} />
       </div>
 
-      {/* Thinking + Next bar */}
+      {/* Thinking + Next + Countdown bar */}
       <div className="px-5 py-3 border-b space-y-1.5" style={{ borderColor: `${agent.color}10`, background: `${agent.color}03` }}>
         <div className="flex items-start gap-2">
           <span className="font-pixel text-[9px] tracking-wider shrink-0 mt-0.5" style={{ color: `${agent.color}90` }}>THINK</span>
@@ -366,6 +404,24 @@ function AgentTerminal({
             <ChevronRight className="w-3.5 h-3.5 inline flex-shrink-0" style={{ color: '#00FF0060' }} />
             {next}
           </span>
+        </div>
+        {/* Countdown timer */}
+        <div className="flex items-center gap-2 pt-1">
+          <span className="font-pixel text-[9px] tracking-wider shrink-0" style={{ color: countdown === 'DUE NOW' ? '#00FF00' : `${agent.color}70` }}>
+            TIMER
+          </span>
+          <div className="flex items-center gap-2 flex-1">
+            <span
+              className={`font-pixel text-sm tracking-wider ${countdown === 'DUE NOW' ? 'animate-pulse' : ''}`}
+              style={{
+                color: countdown === 'DUE NOW' ? '#00FF00' : agent.color,
+                textShadow: countdown === 'DUE NOW' ? '0 0 10px #00FF00' : `0 0 6px ${agent.color}60`,
+              }}
+            >
+              {countdown}
+            </span>
+            <span className="font-mono text-[10px] text-flow-gray-600">({getIntervalLabel(agent.id)})</span>
+          </div>
         </div>
       </div>
 
@@ -579,6 +635,7 @@ export default function SwarmDashboard() {
                     isActive={isAgentActive(id)}
                     hasError={isAgentError(id)}
                     pulsePhase={getPulsePhase(agent.order)}
+                    countdown={getCountdown(id, activitiesByAgent[id]?.[0]?.created_at)}
                   />
                   {/* Flow arrow between cards (shown on mobile only between rows) */}
                   {nextAgent && (
