@@ -5,8 +5,8 @@ import { cleanup } from '../lib/ffmpeg';
 import { getSupabase } from '../shared/supabase';
 import { sendPostNotification } from '../lib/email';
 
-const MAX_DAILY_UPLOADS = 24;
-const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour between uploads
+const MAX_DAILY_UPLOADS = 8;
+const POLL_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours between uploads
 
 async function getDailyUploadCount(): Promise<number> {
   const today = new Date().toISOString().split('T')[0];
