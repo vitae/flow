@@ -11,25 +11,41 @@ function getSupabase() {
 }
 
 async function findTrendingAudio(): Promise<{ videoId: string; title: string }> {
-  const queries = ['trending shorts music 2026', 'viral edm dance shorts', 'rave music shorts'];
-  const query = queries[Math.floor(Math.random() * queries.length)];
+  const queries = [
+    'edm dance music',
+    'bass house music',
+    'rave festival music',
+    'electronic dance music mix',
+    'dubstep drops',
+    'flow arts music',
+  ];
 
-  const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/search?` +
-    new URLSearchParams({
-      part: 'snippet',
-      q: query,
-      type: 'video',
-      videoDuration: 'short',
-      order: 'viewCount',
-      maxResults: '5',
-      key: process.env.YOUTUBE_API_KEY!,
-    })
-  );
-  const data = await res.json();
-  const top = data.items?.[0];
-  if (!top) throw new Error('No trending audio found');
-  return { videoId: top.id.videoId, title: top.snippet.title };
+  // Try multiple queries until we find results
+  for (let i = 0; i < 3; i++) {
+    const query = queries[Math.floor(Math.random() * queries.length)];
+    console.log('Searching trending audio:', query);
+
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?` +
+      new URLSearchParams({
+        part: 'snippet',
+        q: query,
+        type: 'video',
+        order: 'viewCount',
+        maxResults: '10',
+        key: process.env.YOUTUBE_API_KEY!,
+      })
+    );
+    const data = await res.json();
+    console.log('YouTube search results:', data.items?.length || 0, 'error:', data.error?.message);
+
+    const item = data.items?.[Math.floor(Math.random() * Math.min(data.items.length, 5))];
+    if (item) {
+      return { videoId: item.id.videoId, title: item.snippet.title };
+    }
+  }
+
+  throw new Error('No trending audio found after 3 attempts');
 }
 
 async function generateMetadata(igUsername: string, igCaption?: string) {
