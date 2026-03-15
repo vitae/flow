@@ -625,7 +625,7 @@ function UploadModal({ onClose, onQueueFiles }: {
   const addFiles = (fileList: FileList | File[]) => {
     const newFiles = Array.from(fileList).filter(f => {
       if (!f.type.startsWith('video/')) { setError('Only video files are accepted'); return false; }
-      if (f.size > 100 * 1024 * 1024) { setError(`${f.name} exceeds 100MB limit`); return false; }
+      if (f.size > 200 * 1024 * 1024) { setError(`${f.name} exceeds 200MB limit`); return false; }
       return true;
     });
     setSelectedFiles(prev => [...prev, ...newFiles]);
@@ -702,7 +702,7 @@ function UploadModal({ onClose, onQueueFiles }: {
                 {selectedFiles.length > 0 ? `${selectedFiles.length} VIDEO${selectedFiles.length > 1 ? 'S' : ''} SELECTED` : 'DROP VIDEOS HERE'}
               </div>
               <div className="font-mono text-xs text-white/40">
-                Select multiple files · MP4, MOV, WebM (max 100MB each)
+                Select multiple files · MP4, MOV, WebM (max 200MB each)
               </div>
             </div>
           </div>
@@ -803,32 +803,57 @@ export default function SwarmDashboard() {
     }
   }, []);
 
-  /** Fire-and-forget upload for a single file */
+  /** Two-step upload: get signed URL → upload directly to storage → register in DB */
   const uploadFile = useCallback(async (job: UploadJob) => {
-    setUploadQueue(prev => prev.map(j => j.id === job.id ? { ...j, status: 'uploading' as const, progress: 10 } : j));
+    setUploadQueue(prev => prev.map(j => j.id === job.id ? { ...j, status: 'uploading' as const, progress: 2 } : j));
 
     try {
-      const formData = new FormData();
-      formData.append('video', job.file);
-      if (job.title) formData.append('title', job.title);
+      // Step 1: Get a signed upload URL from our API
+      const signRes = await fetch('/api/swarm/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'sign', filename: job.file.name, contentType: job.file.type }),
+      });
+      if (!signRes.ok) {
+        const err = await signRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to get upload URL');
+      }
+      const { id, uploadUrl, token, storagePath } = await signRes.json();
 
-      const progressInterval = setInterval(() => {
-        setUploadQueue(prev => prev.map(j =>
-          j.id === job.id && j.status === 'uploading'
-            ? { ...j, progress: Math.min(j.progress + Math.random() * 15, 90) }
-            : j
-        ));
-      }, 500);
+      setUploadQueue(prev => prev.map(j => j.id === job.id ? { ...j, progress: 5 } : j));
 
-      const res = await fetch('/api/swarm/submit', { method: 'POST', body: formData });
-      clearInterval(progressInterval);
+      // Step 2: Upload file directly to Supabase Storage with real progress via XHR
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const pct = 5 + (e.loaded / e.total) * 85; // 5-90%
+            setUploadQueue(prev => prev.map(j => j.id === job.id ? { ...j, progress: pct } : j));
+          }
+        });
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Storage upload failed (${xhr.status})`));
+        });
+        xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+        xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', job.file.type);
+        if (token) xhr.setRequestHeader('x-upsert', 'false');
+        xhr.send(job.file);
+      });
 
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setUploadQueue(prev => prev.map(j =>
-          j.id === job.id ? { ...j, status: 'error' as const, progress: 0, error: json.error || 'Upload failed' } : j
-        ));
-        return;
+      setUploadQueue(prev => prev.map(j => j.id === job.id ? { ...j, progress: 92 } : j));
+
+      // Step 3: Register the file in the database
+      const regRes = await fetch('/api/swarm/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'register', id, storagePath, title: job.title, filename: job.file.name }),
+      });
+      if (!regRes.ok) {
+        const err = await regRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to register video');
       }
 
       setUploadQueue(prev => prev.map(j =>
