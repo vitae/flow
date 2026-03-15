@@ -36,68 +36,83 @@ interface DashboardData {
 }
 
 const AGENTS = [
-  { id: 'scout', label: 'Scout', icon: Search, color: '#00FFFF', desc: 'Finds viral videos' },
-  { id: 'downloader', label: 'Downloader', icon: Download, color: '#00FF00', desc: 'Downloads videos' },
-  { id: 'audio_engineer', label: 'Audio', icon: Volume2, color: '#FFFF00', desc: 'Strips audio' },
-  { id: 'editor', label: 'Editor', icon: Scissors, color: '#FF00FF', desc: 'Trims to Shorts' },
-  { id: 'copywriter', label: 'Copywriter', icon: PenTool, color: '#FF8800', desc: 'Writes metadata' },
-  { id: 'publisher', label: 'Publisher', icon: Upload, color: '#00FF00', desc: 'Posts to platforms' },
-  { id: 'music_adder', label: 'Music', icon: Music, color: '#FF00FF', desc: 'Adds trending audio' },
-  { id: 'cookie_refresher', label: 'Cookies', icon: Cookie, color: '#FFFF00', desc: 'Refreshes YT auth' },
+  { id: 'scout', label: 'SCOUT', icon: Search, color: '#00FFFF', desc: 'FINDS VIRAL VIDS' },
+  { id: 'downloader', label: 'DWNLD', icon: Download, color: '#00FF00', desc: 'DOWNLOADS' },
+  { id: 'audio_engineer', label: 'AUDIO', icon: Volume2, color: '#FFFF00', desc: 'STRIPS AUDIO' },
+  { id: 'editor', label: 'EDITR', icon: Scissors, color: '#FF00FF', desc: 'TRIMS VIDEO' },
+  { id: 'copywriter', label: 'COPYW', icon: PenTool, color: '#FF8800', desc: 'WRITES META' },
+  { id: 'publisher', label: 'PUBLR', icon: Upload, color: '#00FF00', desc: 'POSTS CONTENT' },
+  { id: 'music_adder', label: 'MUSIC', icon: Music, color: '#FF00FF', desc: 'ADDS BEATS' },
+  { id: 'cookie_refresher', label: 'COOKR', icon: Cookie, color: '#FFFF00', desc: 'KEEPS AUTH' },
 ];
 
 const PIPELINE_STAGES = [
-  { status: 'pending', label: 'Pending', color: '#666' },
-  { status: 'downloading', label: 'Downloading', color: '#00FFFF' },
-  { status: 'downloaded', label: 'Downloaded', color: '#00FFFF' },
-  { status: 'audio_search', label: 'Audio', color: '#FFFF00' },
-  { status: 'audio_ready', label: 'Audio Ready', color: '#FFFF00' },
-  { status: 'edited', label: 'Edited', color: '#FF00FF' },
-  { status: 'metadata_ready', label: 'Ready', color: '#FF8800' },
-  { status: 'uploading', label: 'Uploading', color: '#00FF00' },
-  { status: 'posted', label: 'Posted', color: '#00FF00' },
-  { status: 'failed', label: 'Failed', color: '#FF0000' },
+  { status: 'pending', label: 'PEND', color: '#444' },
+  { status: 'downloading', label: 'DWNL', color: '#00FFFF' },
+  { status: 'downloaded', label: 'DONE', color: '#00FFFF' },
+  { status: 'audio_search', label: 'AUD', color: '#FFFF00' },
+  { status: 'audio_ready', label: 'AUD+', color: '#FFFF00' },
+  { status: 'edited', label: 'EDIT', color: '#FF00FF' },
+  { status: 'metadata_ready', label: 'RDY', color: '#FF8800' },
+  { status: 'uploading', label: 'UPLD', color: '#00FF00' },
+  { status: 'posted', label: 'LIVE', color: '#00FF00' },
+  { status: 'failed', label: 'FAIL', color: '#FF0000' },
 ];
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return 'NOW';
+  if (mins < 60) return `${mins}M`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return `${hrs}H`;
+  return `${Math.floor(hrs / 24)}D`;
 }
 
 function getActionLabel(action: string): { label: string; type: 'success' | 'error' | 'info' } {
   switch (action) {
-    case 'discovered': return { label: 'Found viral videos', type: 'success' };
-    case 'processing': return { label: 'Processing', type: 'info' };
-    case 'completed': return { label: 'Completed', type: 'success' };
-    case 'published': return { label: 'Published', type: 'success' };
-    case 'refreshed': return { label: 'Cookies refreshed', type: 'success' };
-    case 'error': return { label: 'Error', type: 'error' };
-    default: return { label: action, type: 'info' };
+    case 'discovered': return { label: 'VIRAL FOUND', type: 'success' };
+    case 'processing': return { label: 'PROCESSING', type: 'info' };
+    case 'completed': return { label: 'COMPLETE', type: 'success' };
+    case 'published': return { label: 'PUBLISHED', type: 'success' };
+    case 'refreshed': return { label: 'REFRESHED', type: 'success' };
+    case 'error': return { label: 'ERROR', type: 'error' };
+    default: return { label: action.toUpperCase(), type: 'info' };
   }
 }
 
 function getStatusIcon(status: string) {
   switch (status) {
-    case 'posted': return <CheckCircle2 className="w-3.5 h-3.5 text-flow-green" />;
-    case 'failed': return <AlertTriangle className="w-3.5 h-3.5 text-flow-red" />;
+    case 'posted': return <CheckCircle2 className="w-3.5 h-3.5 drop-shadow-[0_0_6px_#00FF00]" style={{ color: '#00FF00' }} />;
+    case 'failed': return <AlertTriangle className="w-3.5 h-3.5 drop-shadow-[0_0_6px_#FF0000]" style={{ color: '#FF0000' }} />;
     case 'uploading':
     case 'processing':
     case 'audio_search':
-      return <Loader2 className="w-3.5 h-3.5 text-flow-cyan animate-spin" />;
-    case 'metadata_ready': return <Zap className="w-3.5 h-3.5 text-orange-400" />;
-    default: return <Clock className="w-3.5 h-3.5 text-flow-gray-500" />;
+      return <Loader2 className="w-3.5 h-3.5 animate-spin drop-shadow-[0_0_6px_#00FFFF]" style={{ color: '#00FFFF' }} />;
+    case 'metadata_ready': return <Zap className="w-3.5 h-3.5 drop-shadow-[0_0_6px_#FF8800]" style={{ color: '#FF8800' }} />;
+    default: return <Clock className="w-3.5 h-3.5 text-flow-gray-600" />;
   }
+}
+
+// Pixel art glowstick bar
+function GlowstickBar({ color, width }: { color: string; width: string }) {
+  return (
+    <div
+      className="h-1 rounded-full"
+      style={{
+        width,
+        background: color,
+        boxShadow: `0 0 4px ${color}, 0 0 8px ${color}80, 0 0 16px ${color}40`,
+      }}
+    />
+  );
 }
 
 export default function AgentDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [tick, setTick] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -114,14 +129,21 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000); // Poll every 10s
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  // Beat pulse counter for animations
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   if (loading || !data) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 text-flow-green animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="w-12 h-12 border-2 border-flow-green rounded-sm animate-spin glowstick-green" />
+        <span className="font-pixel text-[10px] neon-text-green neon-flicker">LOADING SWARM...</span>
       </div>
     );
   }
@@ -131,7 +153,6 @@ export default function AgentDashboard() {
   const failedCount = data.pipeline['failed'] || 0;
   const inPipeline = totalPosts - postedCount - failedCount;
 
-  // Get last activity per agent
   const lastAgentActivity: Record<string, Activity> = {};
   for (const act of data.activity) {
     if (!lastAgentActivity[act.agent]) {
@@ -140,253 +161,400 @@ export default function AgentDashboard() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-white">Agent Swarm</h1>
-          <p className="text-sm text-flow-gray-400 mt-1">Real-time pipeline monitoring</p>
+    <div className="max-w-6xl mx-auto space-y-5 relative">
+      {/* Laser beams */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="laser-h-green" style={{ top: '15%', left: 0 }} />
+        <div className="laser-h-magenta" style={{ top: '45%', right: 0 }} />
+        <div className="laser-v-green" style={{ left: '20%', top: 0 }} />
+        <div className="laser-v-magenta" style={{ right: '30%', top: 0 }} />
+        <div className="laser-h-green" style={{ top: '75%', left: '10%' }} />
+        <div className="laser-v-magenta" style={{ left: '60%', top: '20%' }} />
+      </div>
+
+      {/* Scanline overlay */}
+      <div className="fixed inset-0 scanlines pointer-events-none z-[1] opacity-30" />
+
+      {/* Content */}
+      <div className="relative z-10 space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-pixel text-lg neon-text-green neon-flicker tracking-wider">
+              AGENT SWARM
+            </h1>
+            <div className="flex items-center gap-2 mt-2">
+              <GlowstickBar color="#00FF00" width="40px" />
+              <GlowstickBar color="#FF00FF" width="24px" />
+              <span className="font-pixel text-[7px] text-flow-gray-500 uppercase tracking-widest">
+                live monitoring
+              </span>
+              <GlowstickBar color="#FF00FF" width="24px" />
+              <GlowstickBar color="#00FF00" width="40px" />
+            </div>
+          </div>
+          <button
+            onClick={fetchData}
+            className="flex items-center gap-2 font-pixel text-[7px] px-3 py-2 rounded border border-flow-green/30 text-flow-green hover:neon-border-green transition-all"
+          >
+            <RefreshCw className="w-3 h-3" />
+            {lastRefresh.toLocaleTimeString()}
+          </button>
         </div>
-        <button
-          onClick={fetchData}
-          className="flex items-center gap-2 text-xs text-flow-gray-400 hover:text-flow-green transition-colors px-3 py-1.5 rounded-lg border border-flow-gray-800 hover:border-flow-green/30"
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: 'TOTAL', value: totalPosts, color: '#FFFFFF', borderColor: '#333' },
+            { label: 'LIVE', value: postedCount, color: '#00FF00', borderColor: '#00FF0040' },
+            { label: 'QUEUE', value: inPipeline, color: '#00FFFF', borderColor: '#00FFFF40' },
+            { label: 'FAIL', value: failedCount, color: '#FF0000', borderColor: '#FF000040' },
+          ].map(stat => (
+            <div
+              key={stat.label}
+              className="rounded-lg p-3 pixel-grid relative overflow-hidden"
+              style={{
+                background: '#050505',
+                border: `2px solid ${stat.borderColor}`,
+                boxShadow: stat.value > 0 ? `0 0 10px ${stat.borderColor}, inset 0 0 10px ${stat.borderColor}` : 'none',
+              }}
+            >
+              <div
+                className="font-pixel text-xl"
+                style={{ color: stat.color, textShadow: `0 0 8px ${stat.color}80` }}
+              >
+                {stat.value}
+              </div>
+              <div className="font-pixel text-[7px] mt-1 tracking-widest" style={{ color: stat.color + '80' }}>
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pipeline Flow */}
+        <div
+          className="rounded-lg p-4 relative overflow-hidden pixel-grid"
+          style={{
+            background: '#050505',
+            border: '2px solid #00FF0030',
+            boxShadow: '0 0 15px #00FF0010, inset 0 0 15px #00FF0008',
+          }}
         >
-          <RefreshCw className="w-3.5 h-3.5" />
-          {lastRefresh.toLocaleTimeString()}
-        </button>
-      </div>
+          <h2 className="font-pixel text-[8px] neon-text-green mb-4 tracking-widest flex items-center gap-2">
+            <TrendingUp className="w-3.5 h-3.5 drop-shadow-[0_0_6px_#00FF00]" />
+            PIPELINE FLOW
+          </h2>
+          <div className="flex items-center gap-0.5 overflow-x-auto pb-2">
+            {PIPELINE_STAGES.map((stage, i) => {
+              const count = data.pipeline[stage.status] || 0;
+              const isActive = count > 0;
+              return (
+                <div key={stage.status} className="flex items-center">
+                  <div
+                    className={`flex flex-col items-center min-w-[56px] rounded p-2 transition-all ${isActive ? 'beat-pulse' : ''}`}
+                    style={{
+                      background: isActive ? stage.color + '12' : '#0a0a0a',
+                      border: `2px solid ${isActive ? stage.color + '60' : '#1a1a1a'}`,
+                      boxShadow: isActive ? `0 0 8px ${stage.color}40, inset 0 0 4px ${stage.color}20` : 'none',
+                    }}
+                  >
+                    <span
+                      className="font-pixel text-sm"
+                      style={{
+                        color: isActive ? stage.color : '#333',
+                        textShadow: isActive ? `0 0 6px ${stage.color}` : 'none',
+                      }}
+                    >
+                      {count}
+                    </span>
+                    <span
+                      className="font-pixel text-[5px] mt-1 tracking-wider whitespace-nowrap"
+                      style={{ color: isActive ? stage.color + 'A0' : '#333' }}
+                    >
+                      {stage.label}
+                    </span>
+                  </div>
+                  {i < PIPELINE_STAGES.length - 1 && (
+                    <div className="mx-0.5 flex flex-col items-center gap-0.5">
+                      <div className="w-3 h-px" style={{ background: `linear-gradient(90deg, ${stage.color}40, ${PIPELINE_STAGES[i + 1].color}40)` }} />
+                      <ArrowRight className="w-2 h-2" style={{ color: '#333' }} />
+                      <div className="w-3 h-px" style={{ background: `linear-gradient(90deg, ${stage.color}40, ${PIPELINE_STAGES[i + 1].color}40)` }} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-flow-gray-900/80 border border-flow-gray-800 p-4">
-          <div className="text-2xl font-bold text-white">{totalPosts}</div>
-          <div className="text-xs text-flow-gray-400 mt-1">Total Posts</div>
-        </div>
-        <div className="rounded-xl bg-flow-gray-900/80 border border-flow-green/20 p-4">
-          <div className="text-2xl font-bold text-flow-green">{postedCount}</div>
-          <div className="text-xs text-flow-gray-400 mt-1">Published</div>
-        </div>
-        <div className="rounded-xl bg-flow-gray-900/80 border border-flow-cyan/20 p-4">
-          <div className="text-2xl font-bold text-flow-cyan">{inPipeline}</div>
-          <div className="text-xs text-flow-gray-400 mt-1">In Pipeline</div>
-        </div>
-        <div className="rounded-xl bg-flow-gray-900/80 border border-flow-red/20 p-4">
-          <div className="text-2xl font-bold text-flow-red">{failedCount}</div>
-          <div className="text-xs text-flow-gray-400 mt-1">Failed</div>
-        </div>
-      </div>
+        {/* Agents Grid */}
+        <div
+          className="rounded-lg p-4 relative overflow-hidden pixel-grid"
+          style={{
+            background: '#050505',
+            border: '2px solid #FF00FF30',
+            boxShadow: '0 0 15px #FF00FF10, inset 0 0 15px #FF00FF08',
+          }}
+        >
+          <h2 className="font-pixel text-[8px] neon-text-magenta mb-4 tracking-widest flex items-center gap-2">
+            <Eye className="w-3.5 h-3.5 drop-shadow-[0_0_6px_#FF00FF]" />
+            AGENT STATUS
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+            {AGENTS.map(agent => {
+              const lastAct = lastAgentActivity[agent.id];
+              const hasError = lastAct?.action === 'error';
+              const isRecent = lastAct && (Date.now() - new Date(lastAct.created_at).getTime()) < 300000;
 
-      {/* Pipeline Flow */}
-      <div className="rounded-xl bg-flow-gray-900/80 border border-flow-gray-800 p-5">
-        <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-flow-green" />
-          Pipeline Flow
-        </h2>
-        <div className="flex items-center gap-1 overflow-x-auto pb-2">
-          {PIPELINE_STAGES.map((stage, i) => {
-            const count = data.pipeline[stage.status] || 0;
-            return (
-              <div key={stage.status} className="flex items-center">
+              return (
                 <div
-                  className="flex flex-col items-center min-w-[72px] rounded-lg p-2 transition-all"
+                  key={agent.id}
+                  className={`rounded p-2.5 transition-all relative overflow-hidden ${isRecent && !hasError ? 'glowstick-green' : ''} ${hasError ? 'glowstick-magenta' : ''}`}
                   style={{
-                    backgroundColor: count > 0 ? stage.color + '10' : 'transparent',
-                    border: `1px solid ${count > 0 ? stage.color + '30' : '#222'}`,
+                    background: '#0a0a0a',
+                    border: `2px solid ${hasError ? '#FF000060' : isRecent ? agent.color + '50' : '#1a1a1a'}`,
+                    boxShadow: isRecent && !hasError ? `inset 0 0 15px ${agent.color}15` : hasError ? 'inset 0 0 15px #FF000015' : 'none',
                   }}
                 >
-                  <span
-                    className="text-lg font-bold"
-                    style={{ color: count > 0 ? stage.color : '#444' }}
-                  >
-                    {count}
-                  </span>
-                  <span className="text-[9px] text-flow-gray-500 whitespace-nowrap">{stage.label}</span>
-                </div>
-                {i < PIPELINE_STAGES.length - 1 && (
-                  <ArrowRight className="w-3 h-3 text-flow-gray-700 mx-0.5 shrink-0" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                  {/* Pixel grid inside card */}
+                  <div className="absolute inset-0 pixel-grid opacity-50" />
 
-      {/* Agents Grid */}
-      <div className="rounded-xl bg-flow-gray-900/80 border border-flow-gray-800 p-5">
-        <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-          <Eye className="w-4 h-4 text-flow-cyan" />
-          Agent Status
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {AGENTS.map(agent => {
-            const lastAct = lastAgentActivity[agent.id];
-            const hasError = lastAct?.action === 'error';
-            const isRecent = lastAct && (Date.now() - new Date(lastAct.created_at).getTime()) < 300000; // 5min
-
-            return (
-              <div
-                key={agent.id}
-                className="rounded-lg p-3 border transition-all"
-                style={{
-                  backgroundColor: isRecent ? agent.color + '08' : '#0a0a0a',
-                  borderColor: hasError ? '#FF000030' : isRecent ? agent.color + '25' : '#222',
-                }}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: agent.color + '15' }}
-                  >
-                    <agent.icon className="w-3.5 h-3.5" style={{ color: agent.color }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-white">{agent.label}</div>
-                    <div className="text-[9px] text-flow-gray-500">{agent.desc}</div>
-                  </div>
-                  {isRecent && !hasError && (
-                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: agent.color }} />
-                  )}
-                  {hasError && (
-                    <AlertTriangle className="w-3.5 h-3.5 text-flow-red" />
-                  )}
-                </div>
-                {lastAct ? (
-                  <div className="text-[10px] text-flow-gray-500">
-                    {getActionLabel(lastAct.action).label} &middot; {timeAgo(lastAct.created_at)}
-                  </div>
-                ) : (
-                  <div className="text-[10px] text-flow-gray-600">No activity yet</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Two Column: Activity Feed + Recent Posts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Activity Feed */}
-        <div className="rounded-xl bg-flow-gray-900/80 border border-flow-gray-800 p-5">
-          <h2 className="text-sm font-semibold text-white mb-3">Activity Feed</h2>
-          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-            {data.activity.length === 0 ? (
-              <p className="text-xs text-flow-gray-500 text-center py-8">No activity yet. Agents will log events here once they start processing.</p>
-            ) : (
-              data.activity.map(act => {
-                const { label, type } = getActionLabel(act.action);
-                const agent = AGENTS.find(a => a.id === act.agent);
-                return (
-                  <div
-                    key={act.id}
-                    className="flex items-start gap-2 rounded-lg p-2 bg-flow-gray-900/50 border border-flow-gray-800/50"
-                  >
+                  <div className="relative flex items-center gap-2 mb-1.5">
                     <div
-                      className="w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5"
-                      style={{ backgroundColor: (agent?.color || '#666') + '15' }}
+                      className="w-6 h-6 rounded flex items-center justify-center"
+                      style={{
+                        background: agent.color + '20',
+                        border: `1px solid ${agent.color}40`,
+                        boxShadow: `0 0 6px ${agent.color}30`,
+                      }}
                     >
-                      {agent && <agent.icon className="w-2.5 h-2.5" style={{ color: agent.color }} />}
+                      <agent.icon className="w-3 h-3" style={{ color: agent.color, filter: `drop-shadow(0 0 4px ${agent.color})` }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-medium text-flow-gray-300">
-                          {agent?.label || act.agent}
-                        </span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
-                          type === 'success' ? 'bg-flow-green/10 text-flow-green' :
-                          type === 'error' ? 'bg-flow-red/10 text-flow-red' :
-                          'bg-flow-gray-800 text-flow-gray-400'
-                        }`}>
-                          {label}
-                        </span>
-                        <span className="text-[9px] text-flow-gray-600 ml-auto shrink-0">
-                          {timeAgo(act.created_at)}
-                        </span>
+                      <div className="font-pixel text-[7px] tracking-wider" style={{ color: agent.color, textShadow: `0 0 4px ${agent.color}80` }}>
+                        {agent.label}
                       </div>
-                      {act.details && Object.keys(act.details).length > 0 && (
-                        <div className="text-[9px] text-flow-gray-500 mt-0.5 truncate">
-                          {act.details.hashtag && `#${act.details.hashtag}`}
-                          {act.details.queued && ` — ${act.details.queued} queued`}
-                          {act.details.top_likes && ` (top: ${Number(act.details.top_likes).toLocaleString()} likes)`}
-                          {act.details.title && `"${act.details.title}"`}
-                          {act.details.error && <span className="text-flow-red">{String(act.details.error).slice(0, 80)}</span>}
-                          {act.details.cookies_count && `${act.details.cookies_count} cookies`}
-                          {act.details.output_status && `→ ${act.details.output_status}`}
-                        </div>
-                      )}
+                      <div className="font-pixel text-[5px] text-flow-gray-600 tracking-wider">{agent.desc}</div>
                     </div>
+                    {isRecent && !hasError && (
+                      <div
+                        className="w-2 h-2 rounded-full animate-pulse"
+                        style={{
+                          background: agent.color,
+                          boxShadow: `0 0 4px ${agent.color}, 0 0 8px ${agent.color}`,
+                        }}
+                      />
+                    )}
+                    {hasError && (
+                      <AlertTriangle className="w-3 h-3 drop-shadow-[0_0_4px_#FF0000]" style={{ color: '#FF0000' }} />
+                    )}
                   </div>
-                );
-              })
-            )}
+                  <div className="relative">
+                    {lastAct ? (
+                      <div className="font-pixel text-[5px] text-flow-gray-500 tracking-wider">
+                        {getActionLabel(lastAct.action).label} {timeAgo(lastAct.created_at)}
+                      </div>
+                    ) : (
+                      <div className="font-pixel text-[5px] text-flow-gray-700 tracking-wider">IDLE</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Recent Posts */}
-        <div className="rounded-xl bg-flow-gray-900/80 border border-flow-gray-800 p-5">
-          <h2 className="text-sm font-semibold text-white mb-3">Recent Posts</h2>
-          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-            {data.posts.map(post => (
-              <div
-                key={post.id}
-                className="flex items-start gap-2.5 rounded-lg p-2.5 bg-flow-gray-900/50 border border-flow-gray-800/50"
-              >
-                {getStatusIcon(post.status)}
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs text-white truncate">
-                    {post.title || 'Untitled'}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${
-                      post.status === 'posted' ? 'bg-flow-green/10 text-flow-green border-flow-green/20' :
-                      post.status === 'failed' ? 'bg-flow-red/10 text-flow-red border-flow-red/20' :
-                      'bg-flow-gray-800 text-flow-gray-400 border-flow-gray-700'
-                    }`}>
-                      {post.status}
-                    </span>
-                    {post.ig_like_count > 0 && (
-                      <span className="text-[9px] text-flow-gray-500">
-                        {post.ig_like_count.toLocaleString()} likes
-                      </span>
-                    )}
-                    <span className="text-[9px] text-flow-gray-600">
-                      {timeAgo(post.created_at)}
-                    </span>
-                  </div>
-                  {post.error_message && (
-                    <div className="text-[9px] text-flow-red mt-1 truncate">
-                      {post.error_message}
+        {/* Divider glowsticks */}
+        <div className="flex items-center gap-3 py-1">
+          <GlowstickBar color="#00FF00" width="30%" />
+          <GlowstickBar color="#FF00FF" width="20%" />
+          <GlowstickBar color="#00FFFF" width="15%" />
+          <GlowstickBar color="#FF00FF" width="20%" />
+          <GlowstickBar color="#00FF00" width="30%" />
+        </div>
+
+        {/* Two Column: Activity Feed + Recent Posts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Activity Feed */}
+          <div
+            className="rounded-lg p-4 relative overflow-hidden"
+            style={{
+              background: '#050505',
+              border: '2px solid #00FFFF30',
+              boxShadow: '0 0 15px #00FFFF10',
+            }}
+          >
+            <h2 className="font-pixel text-[8px] tracking-widest mb-3 flex items-center gap-2" style={{ color: '#00FFFF', textShadow: '0 0 6px #00FFFF' }}>
+              {'>'} EVENT_LOG
+            </h2>
+            <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
+              {data.activity.length === 0 ? (
+                <div className="text-center py-8">
+                  <span className="font-pixel text-[6px] text-flow-gray-600 tracking-wider">WAITING FOR AGENT EVENTS...</span>
+                </div>
+              ) : (
+                data.activity.map(act => {
+                  const { label, type } = getActionLabel(act.action);
+                  const agent = AGENTS.find(a => a.id === act.agent);
+                  const agentColor = agent?.color || '#666';
+                  return (
+                    <div
+                      key={act.id}
+                      className="flex items-start gap-2 rounded p-2"
+                      style={{
+                        background: '#0a0a0a',
+                        border: `1px solid ${type === 'error' ? '#FF000025' : type === 'success' ? agentColor + '20' : '#1a1a1a'}`,
+                      }}
+                    >
+                      <div
+                        className="w-4 h-4 rounded flex items-center justify-center shrink-0 mt-0.5"
+                        style={{ background: agentColor + '20', boxShadow: `0 0 4px ${agentColor}20` }}
+                      >
+                        {agent && <agent.icon className="w-2 h-2" style={{ color: agentColor }} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-pixel text-[5px] tracking-wider" style={{ color: agentColor }}>
+                            {agent?.label || act.agent.toUpperCase()}
+                          </span>
+                          <span
+                            className="font-pixel text-[5px] px-1.5 py-0.5 rounded tracking-wider"
+                            style={{
+                              background: type === 'success' ? '#00FF0015' : type === 'error' ? '#FF000015' : '#ffffff08',
+                              color: type === 'success' ? '#00FF00' : type === 'error' ? '#FF0000' : '#666',
+                              textShadow: type === 'success' ? '0 0 4px #00FF0060' : type === 'error' ? '0 0 4px #FF000060' : 'none',
+                            }}
+                          >
+                            {label}
+                          </span>
+                          <span className="font-pixel text-[5px] text-flow-gray-700 ml-auto shrink-0 tracking-wider">
+                            {timeAgo(act.created_at)}
+                          </span>
+                        </div>
+                        {act.details && Object.keys(act.details).length > 0 && (
+                          <div className="font-mono text-[8px] text-flow-gray-500 mt-0.5 truncate">
+                            {act.details.hashtag && `#${act.details.hashtag}`}
+                            {act.details.queued && ` +${act.details.queued}`}
+                            {act.details.top_likes && ` (${Number(act.details.top_likes).toLocaleString()})`}
+                            {act.details.title && `"${act.details.title}"`}
+                            {act.details.error && <span className="text-flow-red">{String(act.details.error).slice(0, 60)}</span>}
+                            {act.details.cookies_count && `${act.details.cookies_count} cookies`}
+                            {act.details.output_status && `> ${act.details.output_status}`}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  <div className="flex items-center gap-2 mt-1">
-                    {post.youtube_video_id && (
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Recent Posts */}
+          <div
+            className="rounded-lg p-4 relative overflow-hidden"
+            style={{
+              background: '#050505',
+              border: '2px solid #FF00FF30',
+              boxShadow: '0 0 15px #FF00FF10',
+            }}
+          >
+            <h2 className="font-pixel text-[8px] neon-text-magenta tracking-widest mb-3 flex items-center gap-2">
+              {'>'} POSTS
+            </h2>
+            <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
+              {data.posts.map(post => (
+                <div
+                  key={post.id}
+                  className="flex items-start gap-2 rounded p-2"
+                  style={{
+                    background: '#0a0a0a',
+                    border: `1px solid ${post.status === 'posted' ? '#00FF0020' : post.status === 'failed' ? '#FF000020' : '#1a1a1a'}`,
+                    boxShadow: post.status === 'posted' ? '0 0 8px #00FF0008' : 'none',
+                  }}
+                >
+                  {getStatusIcon(post.status)}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-mono text-[10px] text-white truncate">
+                      {post.title || 'UNTITLED'}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className="font-pixel text-[5px] px-1.5 py-0.5 rounded tracking-wider"
+                        style={{
+                          background: post.status === 'posted' ? '#00FF0015' : post.status === 'failed' ? '#FF000015' : '#ffffff08',
+                          color: post.status === 'posted' ? '#00FF00' : post.status === 'failed' ? '#FF0000' : '#555',
+                          border: `1px solid ${post.status === 'posted' ? '#00FF0030' : post.status === 'failed' ? '#FF000030' : '#222'}`,
+                          textShadow: post.status === 'posted' ? '0 0 4px #00FF0060' : 'none',
+                        }}
+                      >
+                        {post.status.toUpperCase()}
+                      </span>
+                      {post.ig_like_count > 0 && (
+                        <span className="font-pixel text-[5px] text-flow-gray-500 tracking-wider">
+                          {post.ig_like_count.toLocaleString()}
+                        </span>
+                      )}
+                      <span className="font-pixel text-[5px] text-flow-gray-700 tracking-wider">
+                        {timeAgo(post.created_at)}
+                      </span>
+                    </div>
+                    {post.error_message && (
+                      <div className="font-mono text-[8px] text-flow-red mt-1 truncate" style={{ textShadow: '0 0 4px #FF000040' }}>
+                        {post.error_message}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {post.youtube_video_id && (
+                        <a
+                          href={`https://youtube.com/shorts/${post.youtube_video_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-pixel text-[5px] tracking-wider flex items-center gap-0.5 hover:underline"
+                          style={{ color: '#FF0000', textShadow: '0 0 4px #FF000060' }}
+                        >
+                          YT <ExternalLink className="w-2 h-2" />
+                        </a>
+                      )}
+                      {post.ig_reels_id && (
+                        <span className="font-pixel text-[5px] tracking-wider" style={{ color: '#FF00FF', textShadow: '0 0 4px #FF00FF60' }}>IG</span>
+                      )}
+                      {post.fb_reels_id && (
+                        <span className="font-pixel text-[5px] tracking-wider" style={{ color: '#0088FF', textShadow: '0 0 4px #0088FF60' }}>FB</span>
+                      )}
                       <a
-                        href={`https://youtube.com/shorts/${post.youtube_video_id}`}
+                        href={post.ig_permalink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[9px] text-flow-red hover:underline flex items-center gap-0.5"
+                        className="font-pixel text-[5px] text-flow-gray-600 hover:text-flow-cyan tracking-wider flex items-center gap-0.5 ml-auto"
                       >
-                        YT <ExternalLink className="w-2 h-2" />
+                        SRC <ExternalLink className="w-2 h-2" />
                       </a>
-                    )}
-                    {post.ig_reels_id && (
-                      <span className="text-[9px] text-purple-400">IG Reel</span>
-                    )}
-                    {post.fb_reels_id && (
-                      <span className="text-[9px] text-blue-400">FB Reel</span>
-                    )}
-                    <a
-                      href={post.ig_permalink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[9px] text-flow-gray-500 hover:text-flow-cyan flex items-center gap-0.5 ml-auto"
-                    >
-                      Source <ExternalLink className="w-2 h-2" />
-                    </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+        </div>
+
+        {/* Footer glowsticks */}
+        <div className="flex items-center justify-center gap-2 py-2">
+          <GlowstickBar color="#FF00FF" width="8px" />
+          <GlowstickBar color="#00FF00" width="12px" />
+          <GlowstickBar color="#FF00FF" width="16px" />
+          <GlowstickBar color="#00FF00" width="20px" />
+          <GlowstickBar color="#00FFFF" width="24px" />
+          <GlowstickBar color="#00FF00" width="20px" />
+          <GlowstickBar color="#FF00FF" width="16px" />
+          <GlowstickBar color="#00FF00" width="12px" />
+          <GlowstickBar color="#FF00FF" width="8px" />
+        </div>
+        <div className="text-center">
+          <span className="font-pixel text-[6px] tracking-[0.3em]" style={{ color: '#333' }}>
+            FLOW AI AGENT SWARM v3 // CYBER RAVE EDITION
+          </span>
         </div>
       </div>
     </div>

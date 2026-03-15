@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=JetBrains+Mono:wght@400;500;700&family=Press+Start+2P&display=swap');
 
 :root {
   --flow-green: #00FF00;
@@ -96,3 +96,128 @@ body {
   background: #00FF0040;
   color: #00FF00;
 }
+
+/* ── Cyber Rave — Agent Dashboard ─────────────────────────────── */
+
+.font-pixel {
+  font-family: 'Press Start 2P', monospace;
+  image-rendering: pixelated;
+}
+
+/* Neon glow borders */
+.neon-border-green {
+  border: 2px solid #00FF00;
+  box-shadow: 0 0 5px #00FF00, 0 0 10px #00FF0060, inset 0 0 5px #00FF0020;
+}
+
+.neon-border-magenta {
+  border: 2px solid #FF00FF;
+  box-shadow: 0 0 5px #FF00FF, 0 0 10px #FF00FF60, inset 0 0 5px #FF00FF20;
+}
+
+/* Glowstick pulse */
+@keyframes glowstick-green {
+  0%, 100% { box-shadow: 0 0 4px #00FF00, 0 0 8px #00FF0080, 0 0 16px #00FF0040; }
+  50% { box-shadow: 0 0 8px #00FF00, 0 0 20px #00FF00A0, 0 0 40px #00FF0060; }
+}
+@keyframes glowstick-magenta {
+  0%, 100% { box-shadow: 0 0 4px #FF00FF, 0 0 8px #FF00FF80, 0 0 16px #FF00FF40; }
+  50% { box-shadow: 0 0 8px #FF00FF, 0 0 20px #FF00FFA0, 0 0 40px #FF00FF60; }
+}
+.glowstick-green { animation: glowstick-green 2s ease-in-out infinite; }
+.glowstick-magenta { animation: glowstick-magenta 2s ease-in-out infinite alternate; }
+
+/* Laser sweep */
+@keyframes laser-sweep-h {
+  0% { transform: translateX(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(200%); opacity: 0; }
+}
+@keyframes laser-sweep-v {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(200%); opacity: 0; }
+}
+
+.laser-h-green {
+  position: absolute;
+  height: 1px;
+  width: 60%;
+  background: linear-gradient(90deg, transparent, #00FF00, #00FF0000);
+  box-shadow: 0 0 8px #00FF00, 0 0 20px #00FF0060;
+  animation: laser-sweep-h 4s linear infinite;
+  pointer-events: none;
+}
+.laser-h-magenta {
+  position: absolute;
+  height: 1px;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, #FF00FF, #FF00FF00);
+  box-shadow: 0 0 8px #FF00FF, 0 0 20px #FF00FF60;
+  animation: laser-sweep-h 5.5s linear infinite 1.5s;
+  pointer-events: none;
+}
+.laser-v-green {
+  position: absolute;
+  width: 1px;
+  height: 50%;
+  background: linear-gradient(180deg, transparent, #00FF00, #00FF0000);
+  box-shadow: 0 0 8px #00FF00, 0 0 20px #00FF0060;
+  animation: laser-sweep-v 6s linear infinite 0.5s;
+  pointer-events: none;
+}
+.laser-v-magenta {
+  position: absolute;
+  width: 1px;
+  height: 40%;
+  background: linear-gradient(180deg, transparent, #FF00FF, #FF00FF00);
+  box-shadow: 0 0 8px #FF00FF, 0 0 20px #FF00FF60;
+  animation: laser-sweep-v 7s linear infinite 3s;
+  pointer-events: none;
+}
+
+/* Scanline overlay for retro CRT feel */
+.scanlines {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  pointer-events: none;
+}
+
+/* Pixel grid overlay */
+.pixel-grid {
+  background-image:
+    linear-gradient(rgba(0,255,0,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,0,255,0.04) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+/* Neon text */
+.neon-text-green {
+  color: #00FF00;
+  text-shadow: 0 0 4px #00FF00, 0 0 8px #00FF00, 0 0 16px #00FF0080, 0 0 32px #00FF0040;
+}
+.neon-text-magenta {
+  color: #FF00FF;
+  text-shadow: 0 0 4px #FF00FF, 0 0 8px #FF00FF, 0 0 16px #FF00FF80, 0 0 32px #FF00FF40;
+}
+
+/* Flickering neon sign effect */
+@keyframes neon-flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+  20%, 24%, 55% { opacity: 0.6; }
+}
+.neon-flicker { animation: neon-flicker 3s infinite; }
+
+/* Beat pulse (like bass hitting) */
+@keyframes beat-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+.beat-pulse { animation: beat-pulse 1s ease-in-out infinite; }

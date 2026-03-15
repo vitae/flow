@@ -34,6 +34,7 @@ const config: Config = {
         display: ['Montserrat', 'Jost', 'sans-serif'],
         body: ['Montserrat', 'Jost', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        pixel: ['"Press Start 2P"', 'monospace'],
       },
       animation: {
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
