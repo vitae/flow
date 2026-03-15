@@ -434,13 +434,13 @@ export default function AgentDashboard() {
                         </div>
                         {act.details && Object.keys(act.details).length > 0 && (
                           <div className="font-mono text-[8px] text-flow-gray-500 mt-0.5 truncate">
-                            {act.details.hashtag && `#${act.details.hashtag}`}
-                            {act.details.queued && ` +${act.details.queued}`}
-                            {act.details.top_likes && ` (${Number(act.details.top_likes).toLocaleString()})`}
-                            {act.details.title && `"${act.details.title}"`}
-                            {act.details.error && <span className="text-flow-red">{String(act.details.error).slice(0, 60)}</span>}
-                            {act.details.cookies_count && `${act.details.cookies_count} cookies`}
-                            {act.details.output_status && `> ${act.details.output_status}`}
+                            {act.details.hashtag ? `#${String(act.details.hashtag)}` : null}
+                            {act.details.queued ? ` +${String(act.details.queued)}` : null}
+                            {act.details.top_likes ? ` (${Number(act.details.top_likes).toLocaleString()})` : null}
+                            {act.details.title ? `"${String(act.details.title)}"` : null}
+                            {act.details.error ? <span className="text-flow-red">{String(act.details.error).slice(0, 60)}</span> : null}
+                            {act.details.cookies_count ? `${String(act.details.cookies_count)} cookies` : null}
+                            {act.details.output_status ? `> ${String(act.details.output_status)}` : null}
                           </div>
                         )}
                       </div>
