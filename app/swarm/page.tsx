@@ -863,6 +863,7 @@ export default function SwarmDashboard() {
                   isActive={isAgentActive(id)}
                   hasError={isAgentError(id)}
                   pulsePhase={getPulsePhase(agent.order)}
+                  countdown={getCountdown(id, activitiesByAgent[id]?.[0]?.created_at)}
                 />
               );
             })}

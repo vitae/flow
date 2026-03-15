@@ -3,10 +3,17 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 // ── Browser Client (for Client Components) ─────────────────────────────────
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    // During build/prerender, env vars may not be available
+    // Return a dummy client that will be replaced at runtime
+    return createBrowserClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key'
+    );
+  }
+  return createBrowserClient(url, key);
 }
 
 // ── Server Client (for API Routes & Server Components) ─────────────────────
