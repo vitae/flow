@@ -15,7 +15,8 @@ app.post('/process', async (req, res) => {
     const result = await processAllPending();
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('Worker error:', err);
+    res.status(500).json({ error: err.message, stack: err.stack?.split('\n').slice(0, 5) });
   }
 });
 
