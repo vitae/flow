@@ -1,18 +1,20 @@
 import crypto from 'crypto';
 import { getSupabase } from '../shared/supabase';
 
-// Exactly 30 hashtags — the IG API allows 30 unique hashtags per 7-day rolling window.
-// Ordered by reach: biggest hashtags first (billions of posts) to find the most viral content.
+// Only the biggest hashtags on Instagram — these are where the most viral content lives.
+// 30 hashtags max per 7-day rolling window. We use all 30 over the week.
 const VIRAL_HASHTAGS = [
-  // Massive reach (1B+ posts) — these surface the most-viewed content on IG
-  'viral', 'trending', 'explore', 'reels', 'fyp',
-  'funny', 'dance', 'music', 'love', 'instagood',
-  // High reach (100M+ posts) — entertainment & talent
-  'satisfying', 'comedy', 'memes', 'amazing', 'wow',
-  'talent', 'skills', 'edm', 'rave', 'festival',
-  // Niche viral (10M+ posts) — our core audience
-  'flowarts', 'hulahoop', 'poi', 'juggling', 'dj',
-  'shuffledance', 'firespinner', 'gloving', 'parkour', 'skateboarding',
+  'viral', 'viralvideo', 'viralreels',
+  'trending', 'trendingreels', 'trendingaudio',
+  'explore', 'explorepage', 'fyp', 'foryoupage',
+  'reels', 'reelsviral', 'reelsinstagram',
+  'funny', 'funnyvideos', 'funnymemes',
+  'satisfying', 'oddlysatisfying',
+  'amazing', 'incredible', 'nextlevel',
+  'dance', 'dancereels',
+  'comedy', 'memes',
+  'talent', 'skills',
+  'edm', 'rave', 'festival',
 ];
 // 4 hashtags/day × 7 days = 28 unique per week (under the 30 limit)
 const HASHTAGS_PER_DAY = 4;

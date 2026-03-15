@@ -2,8 +2,8 @@ import { getSupabase } from '../shared/supabase';
 import { getTodaysHashtags, getIGAccessToken, searchHashtag, IGMedia } from '../lib/instagram';
 
 const SCOUT_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours between hashtag searches (4/day = ~8 API calls/day)
-const MIN_LIKES_FOR_VIRAL = 10_000;
-const MIN_LIKES_FALLBACK = 5_000;
+const MIN_ENGAGEMENT = 50_000;  // Primary: only truly viral (50k+ engagement score)
+const MIN_ENGAGEMENT_FALLBACK = 10_000; // Fallback: still strong (10k+)
 
 let hashtagIndex = 0;
 
@@ -25,12 +25,15 @@ async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
     engagementScore: (v.like_count || 0) + (v.comments_count || 0) * 10,
   }));
 
-  // Filter for viral videos by engagement
-  let viral = scored.filter(v => v.engagementScore >= MIN_LIKES_FOR_VIRAL);
+  // Only keep the most viral — 50k+ engagement, fallback to 10k+
+  let viral = scored.filter(v => v.engagementScore >= MIN_ENGAGEMENT);
   if (!viral.length) {
-    viral = scored.filter(v => v.engagementScore >= MIN_LIKES_FALLBACK);
+    viral = scored.filter(v => v.engagementScore >= MIN_ENGAGEMENT_FALLBACK);
   }
-  if (!viral.length) return { hashtag, queued: 0 };
+  if (!viral.length) {
+    console.log(`[scout] #${hashtag}: ${scored.length} videos but none hit ${MIN_ENGAGEMENT_FALLBACK.toLocaleString()}+ engagement`);
+    return { hashtag, queued: 0 };
+  }
 
   // Deduplicate against existing posts
   const mediaIds = viral.map(v => v.id);
@@ -49,7 +52,7 @@ async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
   // Queue new videos sorted by engagement score (most viral first)
   const toQueue = newVideos
     .sort((a, b) => b.engagementScore - a.engagementScore)
-    .slice(0, 5);
+    .slice(0, 3);
 
   const rows = toQueue.map(v => {
     const mentionMatch = v.caption?.match(/@(\w+)/);
