@@ -241,9 +241,12 @@ export default function OnboardingPage() {
                 <EVENT_PRODUCER_PATH.icon className="w-8 h-8" style={{ color: EVENT_PRODUCER_PATH.color }} />
               </div>
               <div className="flex-1">
-                <h3 className="font-display font-bold text-lg" style={{ color: EVENT_PRODUCER_PATH.color }}>
-                  {EVENT_PRODUCER_PATH.title}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display font-bold text-lg" style={{ color: EVENT_PRODUCER_PATH.color }}>
+                    {EVENT_PRODUCER_PATH.title}
+                  </h3>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-flow-green/10 text-flow-green border border-flow-green/30 font-bold">FREE</span>
+                </div>
                 <p className="text-xs text-flow-gray-400">{EVENT_PRODUCER_PATH.subtitle}</p>
                 <p className="text-xs text-flow-gray-500 mt-1">{EVENT_PRODUCER_PATH.description}</p>
               </div>

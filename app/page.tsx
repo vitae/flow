@@ -429,7 +429,10 @@ export default function HomePage() {
               viewport={{ once: true }}
             >
               <Calendar className="w-10 h-10 text-flow-cyan mb-4" />
-              <h3 className="font-display font-bold text-xl mb-3">For Event Producers</h3>
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="font-display font-bold text-xl">For Event Producers</h3>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-flow-green/10 text-flow-green border border-flow-green/30 font-bold">FREE</span>
+              </div>
               <ul className="space-y-3 text-sm text-flow-gray-300">
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-flow-cyan mt-0.5 shrink-0" />
