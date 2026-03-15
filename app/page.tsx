@@ -5,7 +5,8 @@ import { motion } from 'framer-motion';
 import {
   Upload, Sparkles, Music, Hash, Share2, Zap, ArrowRight, Check,
   Crown, Rocket, Users, Globe, TrendingUp, DollarSign, Radio,
-  MessageCircle, Calendar, Flame, Play, Star, Mic2, MapPin, ChevronRight
+  MessageCircle, Calendar, Flame, Play, Star, Mic2, MapPin, ChevronRight,
+  Paintbrush, Monitor, Droplets
 } from 'lucide-react';
 
 const platforms = [
@@ -130,6 +131,7 @@ export default function HomePage() {
             <Link href="#bookings" className="hover:text-flow-green transition-colors">Bookings</Link>
             <Link href="/djs" className="hover:text-flow-green transition-colors">DJs</Link>
             <Link href="#pricing" className="hover:text-flow-green transition-colors">Pricing</Link>
+            <span className="text-flow-cyan text-xs font-display font-medium flex items-center gap-1"><Droplets className="w-3 h-3" /> Stay Hydrated!</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/auth/login" className="btn-secondary text-sm py-2 px-4">
@@ -194,7 +196,7 @@ export default function HomePage() {
               <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-flow-green" /> 10K+ Artists</span>
               <span className="flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5 text-flow-magenta" /> Live Chat</span>
               <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-flow-yellow" /> Event Bookings</span>
-              <span className="flex items-center gap-1.5"><Mic2 className="w-3.5 h-3.5 text-flow-cyan" /> DJ Profiles</span>
+              <span className="flex items-center gap-1.5"><Mic2 className="w-3.5 h-3.5 text-flow-cyan" /> DJs, Painters & VJs</span>
             </div>
           </motion.div>
 
@@ -364,10 +366,10 @@ export default function HomePage() {
               Booking Platform
             </div>
             <h2 className="font-display font-bold text-3xl md:text-4xl mb-4">
-              Book <span className="text-flow-cyan">flow artists</span> for your event
+              Book <span className="text-flow-cyan">talent</span> for your event
             </h2>
             <p className="text-flow-gray-300 text-lg max-w-2xl mx-auto">
-              Event producers, festival organizers, and venue owners — find and book world-class flow performers directly.
+              Event producers, festival organizers, and venue owners — find and book world-class flow artists, DJs, painters, and VJs directly.
             </p>
           </div>
 
@@ -384,11 +386,11 @@ export default function HomePage() {
               <ul className="space-y-3 text-sm text-flow-gray-300">
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-flow-cyan mt-0.5 shrink-0" />
-                  Browse artists by discipline, location & availability
+                  Browse flow artists, DJs, painters & VJs by location
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-flow-cyan mt-0.5 shrink-0" />
-                  Watch video reels and see performance history
+                  Watch video reels, listen to mixes & view portfolios
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-flow-cyan mt-0.5 shrink-0" />
@@ -396,11 +398,11 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-flow-cyan mt-0.5 shrink-0" />
-                  Manage contracts and payments in one place
+                  Post gigs for any talent type to the community board
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-flow-cyan mt-0.5 shrink-0" />
-                  Post gigs to the community job board
+                  Manage contracts and payments in one place
                 </li>
               </ul>
               <Link href="/auth/login" className="btn-secondary w-full mt-6 text-center text-sm">
@@ -408,7 +410,7 @@ export default function HomePage() {
               </Link>
             </motion.div>
 
-            {/* For Flow Artists */}
+            {/* For Talent */}
             <motion.div
               className="glass-card p-8 border-flow-magenta/10"
               initial={{ opacity: 0, x: 20 }}
@@ -416,11 +418,15 @@ export default function HomePage() {
               viewport={{ once: true }}
             >
               <Star className="w-10 h-10 text-flow-magenta mb-4" />
-              <h3 className="font-display font-bold text-xl mb-3">For Flow Artists</h3>
+              <h3 className="font-display font-bold text-xl mb-3">For Performers & Creatives</h3>
               <ul className="space-y-3 text-sm text-flow-gray-300">
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-flow-magenta mt-0.5 shrink-0" />
-                  Create a professional booking profile with video reel
+                  Create a professional profile — flow artist, DJ, painter, or VJ
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check className="w-4 h-4 text-flow-magenta mt-0.5 shrink-0" />
+                  Showcase your work with video reels, mixes & portfolio
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-flow-magenta mt-0.5 shrink-0" />
@@ -432,16 +438,59 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-flow-magenta mt-0.5 shrink-0" />
-                  Get discovered through the gig board & search
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <Check className="w-4 h-4 text-flow-magenta mt-0.5 shrink-0" />
                   Build your reputation with reviews & ratings
                 </li>
               </ul>
               <Link href="/auth/login" className="btn-magenta w-full mt-6 text-center text-sm">
                 Create Booking Profile
               </Link>
+            </motion.div>
+          </div>
+
+          {/* Talent Type Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            <motion.div
+              className="glass-card p-5 text-center"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <Flame className="w-8 h-8 text-flow-magenta mx-auto mb-2" />
+              <h4 className="font-display font-semibold text-sm mb-1">Flow Artists</h4>
+              <p className="text-[10px] text-flow-gray-400">Poi, staff, hoop, fans, LED & more</p>
+            </motion.div>
+            <motion.div
+              className="glass-card p-5 text-center"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+            >
+              <Mic2 className="w-8 h-8 text-flow-cyan mx-auto mb-2" />
+              <h4 className="font-display font-semibold text-sm mb-1">DJs</h4>
+              <p className="text-[10px] text-flow-gray-400">EDM, house, bass, dubstep & more</p>
+            </motion.div>
+            <motion.div
+              className="glass-card p-5 text-center"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+            >
+              <Paintbrush className="w-8 h-8 text-flow-yellow mx-auto mb-2" />
+              <h4 className="font-display font-semibold text-sm mb-1">Painters</h4>
+              <p className="text-[10px] text-flow-gray-400">Live painting, murals, body art & visuals</p>
+            </motion.div>
+            <motion.div
+              className="glass-card p-5 text-center"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+            >
+              <Monitor className="w-8 h-8 text-flow-green mx-auto mb-2" />
+              <h4 className="font-display font-semibold text-sm mb-1">VJs</h4>
+              <p className="text-[10px] text-flow-gray-400">Projection mapping, live visuals & LED</p>
             </motion.div>
           </div>
         </div>
@@ -502,6 +551,82 @@ export default function HomePage() {
             <Link href="/djs" className="btn-primary text-sm px-8 py-3">
               <Mic2 className="w-4 h-4" /> Explore DJ Profiles
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Painters & VJs Section */}
+      <section className="py-20 px-6 border-t border-flow-green/10">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            {/* Painters */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-flex items-center gap-2 rounded-full border border-flow-yellow/20 bg-flow-yellow/5 px-4 py-1.5 text-sm text-flow-yellow mb-4">
+                <Paintbrush className="w-3.5 h-3.5" />
+                Live Painters
+              </div>
+              <h2 className="font-display font-bold text-2xl md:text-3xl mb-4">
+                Painters: <span className="text-flow-yellow">showcase your art</span> & get booked
+              </h2>
+              <p className="text-flow-gray-300 mb-6">
+                Live painters, muralists, and body artists — create your profile, share your portfolio, and get discovered by event producers looking for visual talent.
+              </p>
+              <div className="space-y-3 mb-6">
+                {[
+                  'Create a portfolio with your best work',
+                  'Get found by event producers for live painting gigs',
+                  'Set your rates and specialties (murals, body art, live canvas)',
+                  'Accept bookings for festivals, galleries & private events',
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-2.5 text-sm text-flow-gray-300">
+                    <Check className="w-4 h-4 text-flow-yellow mt-0.5 shrink-0" />
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <Link href="/auth/login" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm bg-flow-yellow/10 text-flow-yellow border border-flow-yellow/20 hover:bg-flow-yellow/20 transition-all">
+                <Paintbrush className="w-4 h-4" /> Create Painter Profile
+              </Link>
+            </motion.div>
+
+            {/* VJs */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="inline-flex items-center gap-2 rounded-full border border-flow-green/20 bg-flow-green/5 px-4 py-1.5 text-sm text-flow-green mb-4">
+                <Monitor className="w-3.5 h-3.5" />
+                Visual Artists
+              </div>
+              <h2 className="font-display font-bold text-2xl md:text-3xl mb-4">
+                VJs: <span className="text-flow-green">create immersive visuals</span> & get booked
+              </h2>
+              <p className="text-flow-gray-300 mb-6">
+                Projection mappers, LED artists, and live visual performers — build your profile and connect with event producers who need jaw-dropping visuals.
+              </p>
+              <div className="space-y-3 mb-6">
+                {[
+                  'Showcase your visual work with video demos',
+                  'Get discovered for festivals, clubs & immersive events',
+                  'Highlight your tech stack (Resolume, TouchDesigner, MadMapper)',
+                  'Accept bookings and manage your show calendar',
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-2.5 text-sm text-flow-gray-300">
+                    <Check className="w-4 h-4 text-flow-green mt-0.5 shrink-0" />
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <Link href="/auth/login" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm bg-flow-green/10 text-flow-green border border-flow-green/20 hover:bg-flow-green/20 transition-all">
+                <Monitor className="w-4 h-4" /> Create VJ Profile
+              </Link>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -761,12 +886,12 @@ export default function HomePage() {
               </div>
             </div>
             <div>
-              <h4 className="font-display font-semibold text-sm mb-3 text-flow-cyan">DJs</h4>
+              <h4 className="font-display font-semibold text-sm mb-3 text-flow-cyan">Talent</h4>
               <div className="space-y-2 text-xs text-flow-gray-400">
                 <Link href="/djs" className="block hover:text-white transition-colors">DJ Profiles</Link>
-                <Link href="/djs" className="block hover:text-white transition-colors">Upload Mixes</Link>
-                <Link href="/djs" className="block hover:text-white transition-colors">Find DJs by State</Link>
-                <Link href="/djs" className="block hover:text-white transition-colors">Book a DJ</Link>
+                <Link href="/auth/login" className="block hover:text-white transition-colors">Painter Profiles</Link>
+                <Link href="/auth/login" className="block hover:text-white transition-colors">VJ Profiles</Link>
+                <Link href="/auth/login" className="block hover:text-white transition-colors">Book Talent</Link>
               </div>
             </div>
             <div>

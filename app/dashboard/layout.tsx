@@ -319,6 +319,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {user?.display_name || 'Set up profile'}
                   </p>
                   <p className="text-[10px] text-flow-gray-500 truncate">{user?.email}</p>
+                  {user?.location && (
+                    <p className="text-[10px] text-flow-gray-400 truncate">{user.location}</p>
+                  )}
                 </div>
               </div>
 
