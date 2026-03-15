@@ -8,7 +8,7 @@ import {
   Search, Download, Volume2, Scissors, PenTool, Upload, Cookie, Music,
   RefreshCw, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink,
   Zap, TrendingUp, Terminal, ChevronRight, ArrowRight, X, UploadCloud,
-  Film,
+  Film, Smartphone,
 } from 'lucide-react';
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -982,6 +982,12 @@ export default function SwarmDashboard() {
               <UploadCloud className="w-5 h-5" />
               UPLOAD
             </button>
+            <a href="/swarm/shortcut"
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(0,255,255,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,255,0.3)', color: '#00FFFF', textShadow: '0 0 6px #00FFFF60' }}>
+              <Smartphone className="w-5 h-5" />
+              iOS
+            </a>
             <button onClick={fetchData}
               className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl text-flow-green transition-all hover:scale-105"
               style={{ background: 'rgba(0,255,0,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,0,0.2)' }}>
