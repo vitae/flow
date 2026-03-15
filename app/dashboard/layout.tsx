@@ -16,7 +16,7 @@ const sideNavItems = [
   { href: '/dashboard/discover', label: 'Discover', icon: Compass },
   { href: '/dashboard/upload', label: 'Upload', icon: Upload },
   { href: '/dashboard/connections', label: 'Connections', icon: Link2 },
-  { href: '/dashboard/agents', label: 'Agents', icon: Bot },
+  { href: '/dashboard/swarm', label: 'Swarm', icon: Bot },
   { href: '/dashboard/messages', label: 'Messages', icon: MessageCircle },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
