@@ -13,9 +13,8 @@ export async function downloadFile(url: string, filename: string): Promise<strin
   ensureTmpDir();
   const filepath = path.join(TMP_DIR, filename);
 
-  // If it's an Instagram permalink, use yt-dlp to download
   if (url.includes('instagram.com')) {
-    return downloadWithYtDlp(url, filepath);
+    return downloadFromInstagram(url, filepath);
   }
 
   const res = await fetch(url);
@@ -24,15 +23,72 @@ export async function downloadFile(url: string, filename: string): Promise<strin
   return filepath;
 }
 
-async function downloadWithYtDlp(igUrl: string, outputPath: string): Promise<string> {
-  const { execSync } = require('child_process');
-  execSync(
-    `yt-dlp -f "best[ext=mp4]" --no-check-certificates -o "${outputPath}" "${igUrl}"`,
-    { timeout: 120000, stdio: 'pipe' }
-  );
-  if (!fs.existsSync(outputPath)) {
-    throw new Error(`yt-dlp failed to download: ${igUrl}`);
+function shortcodeToMediaId(shortcode: string): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let id = BigInt(0);
+  for (const ch of shortcode) {
+    id = id * BigInt(64) + BigInt(alphabet.indexOf(ch));
   }
+  return id.toString();
+}
+
+async function downloadFromInstagram(permalink: string, outputPath: string): Promise<string> {
+  const sessionId = process.env.INSTAGRAM_SESSION_ID;
+  if (!sessionId) throw new Error('INSTAGRAM_SESSION_ID env var is required');
+
+  // Extract shortcode from permalink (e.g. /reel/DV36opEiJPU/)
+  const shortcode = permalink.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/)?.[2];
+  if (!shortcode) throw new Error(`Cannot extract shortcode from: ${permalink}`);
+
+  const mediaId = shortcodeToMediaId(shortcode);
+  console.log('Fetching IG media:', shortcode, '→', mediaId);
+
+  // Use Instagram's private API to get video info
+  const res = await fetch(`https://www.instagram.com/api/v1/media/${mediaId}/info/`, {
+    headers: {
+      'Cookie': `sessionid=${sessionId}`,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'X-IG-App-ID': '936619743392459',
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`IG API returned ${res.status}. Session may have expired.`);
+  }
+
+  const data = await res.json();
+  const item = data?.items?.[0];
+
+  if (!item?.video_versions?.length) {
+    throw new Error('No video versions found — media may not be a video');
+  }
+
+  // Pick highest resolution
+  const best = item.video_versions.sort((a: any, b: any) =>
+    (b.width * b.height) - (a.width * a.height)
+  )[0];
+  console.log('Found video:', best.width, 'x', best.height);
+
+  return downloadCdnVideo(best.url, outputPath);
+}
+
+async function downloadCdnVideo(videoUrl: string, outputPath: string): Promise<string> {
+  const res = await fetch(videoUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    },
+  });
+
+  if (!res.ok) throw new Error(`CDN download failed: ${res.status}`);
+
+  const buffer = Buffer.from(await res.arrayBuffer());
+  fs.writeFileSync(outputPath, buffer);
+  console.log('Downloaded video:', outputPath, 'size:', buffer.length);
+
+  if (buffer.length < 10000) {
+    throw new Error(`Downloaded file too small (${buffer.length} bytes), likely not a video`);
+  }
+
   return outputPath;
 }
 
