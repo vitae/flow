@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   LayoutDashboard, Upload, Link2, Settings, LogOut, Menu, X,
   Video, ChevronRight, Sparkles, Rocket, MessageCircle, ChevronDown, ChevronUp,
-  Home, Search, PlusCircle, User, Compass
+  Home, Search, PlusCircle, User, Compass, Zap, MapPin, Instagram
 } from 'lucide-react';
 import type { User as FlowUser } from '@/lib/types';
 
@@ -98,7 +98,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .select('*')
         .eq('id', session.user.id)
         .single();
-      if (data) setUser(data as FlowUser);
+      if (data) {
+        // Redirect to onboarding if profile not complete
+        if (!data.profile_complete) {
+          router.push('/onboarding');
+          return;
+        }
+        setUser(data as FlowUser);
+      }
     };
     getUser();
   }, []);
@@ -318,9 +325,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <p className="text-sm font-medium truncate group-hover:text-flow-green transition-colors">
                     {user?.display_name || 'Set up profile'}
                   </p>
-                  <p className="text-[10px] text-flow-gray-500 truncate">{user?.email}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {user?.performer_type && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full border" style={{ backgroundColor: userColor + '10', color: userColor, borderColor: userColor + '30' }}>
+                        {user.performer_type === 'flow_artist' ? 'Flow Artist' : user.performer_type === 'event_producer' ? 'Producer' : user.performer_type.toUpperCase()}
+                      </span>
+                    )}
+                    {user?.is_available_for_gigs && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-flow-green/10 text-flow-green border border-flow-green/30">
+                        <Zap className="w-2 h-2 inline" /> Open
+                      </span>
+                    )}
+                  </div>
                   {user?.location && (
-                    <p className="text-[10px] text-flow-gray-400 truncate">{user.location}</p>
+                    <p className="text-[10px] text-flow-gray-400 truncate mt-0.5 flex items-center gap-0.5">
+                      <MapPin className="w-2.5 h-2.5" /> {user.location}
+                    </p>
+                  )}
+                  {user?.instagram_username && (
+                    <p className="text-[10px] text-flow-gray-500 truncate flex items-center gap-0.5">
+                      <Instagram className="w-2.5 h-2.5" /> @{user.instagram_username}
+                    </p>
                   )}
                 </div>
               </div>

@@ -176,7 +176,6 @@ export default function HomePage() {
             <Link href="#bookings" className="hover:text-flow-green transition-colors">Bookings</Link>
             <Link href="/djs" className="hover:text-flow-green transition-colors">DJs</Link>
             <Link href="#pricing" className="hover:text-flow-green transition-colors">Pricing</Link>
-            <span className="text-flow-cyan text-xs font-display font-medium flex items-center gap-1"><Droplets className="w-3 h-3" /> Stay Hydrated!</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/auth/login" className="btn-secondary text-sm py-2 px-4">
@@ -234,6 +233,9 @@ export default function HomePage() {
               </Link>
               <Link href="#bookings" className="btn-secondary text-lg px-8 py-4">
                 <Calendar className="w-5 h-5" /> Book Flow Artists
+              </Link>
+              <Link href="#bookings" className="btn-secondary text-lg px-8 py-4 border-flow-yellow/30 hover:border-flow-yellow/60">
+                <Sparkles className="w-5 h-5 text-flow-yellow" /> Find Gigs
               </Link>
             </div>
 
@@ -875,12 +877,14 @@ export default function HomePage() {
           >
             <div className="glass-card border-flow-cyan/20 p-8 hover:border-flow-cyan/40 transition-all">
               <div className="text-center mb-6">
-                <div className="inline-block bg-flow-cyan/10 text-flow-cyan text-xs font-semibold px-3 py-1 rounded-full mb-3">
-                  PAY PER VIDEO
+                <div className="inline-block bg-flow-cyan/10 text-flow-cyan text-xs font-semibold px-3 py-1 rounded-full mb-3 flex items-center gap-1.5">
+                  <Droplets className="w-3 h-3" /> TEST THE WATERS
                 </div>
-                <h3 className="font-display font-bold text-xl mb-1">Single Video Upload</h3>
+                <h3 className="font-display font-bold text-xl mb-1">
+                  <span className="text-flow-cyan">Stay Hydrated!</span> Upload a Video
+                </h3>
                 <p className="text-sm text-flow-gray-300">
-                  Select your video → pay $5 → AI adds captions, trending music & hashtags → posted to all platforms.
+                  For $5, we share it to the entire world. AI adds captions, trending music & hashtags → posted to all platforms.
                 </p>
               </div>
 

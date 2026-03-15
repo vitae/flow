@@ -17,6 +17,8 @@ export type Platform = 'youtube' | 'instagram' | 'facebook' | 'twitter' | 'threa
 
 export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
 
+export type PerformerType = 'flow_artist' | 'dj' | 'painter' | 'vj' | 'event_producer';
+
 export interface User {
   id: string;
   email: string;
@@ -27,6 +29,11 @@ export interface User {
   flow_toys: string[];
   location: string | null;
   website: string | null;
+  instagram_username: string | null;
+  instagram_id: string | null;
+  performer_type: PerformerType;
+  is_available_for_gigs: boolean;
+  profile_complete: boolean;
   subscription_tier: SubscriptionTier;
   stripe_customer_id: string | null;
   videos_this_month: number;
