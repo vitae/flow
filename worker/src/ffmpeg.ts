@@ -44,15 +44,28 @@ async function downloadFromInstagram(permalink: string, outputPath: string): Pro
   console.log('Fetching IG media:', shortcode, '→', mediaId);
 
   // Use Instagram's private API to get video info
-  const res = await fetch(`https://www.instagram.com/api/v1/media/${mediaId}/info/`, {
-    headers: {
-      'Cookie': `sessionid=${sessionId}`,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      'X-IG-App-ID': '936619743392459',
-    },
-  });
+  // Decode the session ID in case it's URL-encoded
+  const decodedSessionId = decodeURIComponent(sessionId);
+  const apiUrl = `https://i.instagram.com/api/v1/media/${mediaId}/info/`;
+  console.log('IG API URL:', apiUrl);
+
+  let res;
+  try {
+    res = await fetch(apiUrl, {
+      headers: {
+        'Cookie': `sessionid=${decodedSessionId}; ds_user_id=${decodedSessionId.split(':')[0]}`,
+        'User-Agent': 'Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)',
+        'X-IG-App-ID': '936619743392459',
+      },
+    });
+  } catch (err: any) {
+    console.error('IG fetch error:', err.message, err.cause);
+    throw new Error(`IG fetch failed: ${err.message}`);
+  }
 
   if (!res.ok) {
+    const body = await res.text();
+    console.error('IG API error:', res.status, body.substring(0, 500));
     throw new Error(`IG API returned ${res.status}. Session may have expired.`);
   }
 
