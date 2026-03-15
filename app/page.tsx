@@ -163,9 +163,7 @@ export default function HomePage() {
             </div>
 
             <h1 className="font-display font-black text-5xl md:text-7xl leading-[1.05] tracking-tight mb-6">
-              The <span className="text-flow-magenta text-glow-magenta">Worldstar</span> of Flow Arts.
-              <br />
-              The <span className="text-flow-green text-glow-green">ESPN</span> of Movement.
+              The <span className="text-flow-green text-glow-green">ESPN</span> of Flow Arts.
             </h1>
 
             <p className="text-lg md:text-xl text-flow-gray-200 max-w-3xl mx-auto mb-6 leading-relaxed">
@@ -781,7 +779,7 @@ export default function HomePage() {
           </div>
           <div className="border-t border-flow-green/10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-flow-gray-400">
             <span className="font-display">© 2026 Flow AI by <span className="text-flow-green">GWDF</span></span>
-            <span className="text-flow-gray-500 text-xs">The Worldstar of Flow Arts. The ESPN of Movement. <span className="text-flow-green">P</span><span className="text-flow-magenta">L</span><span className="text-flow-cyan">U</span><span className="text-flow-yellow">R</span></span>
+            <span className="text-flow-gray-500 text-xs">The ESPN of Flow Arts. <span className="text-flow-green">P</span><span className="text-flow-magenta">L</span><span className="text-flow-cyan">U</span><span className="text-flow-yellow">R</span></span>
             <span>Your Vibe Attracts Your Tribe</span>
           </div>
         </div>
