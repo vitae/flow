@@ -119,10 +119,11 @@ export async function processAllPending() {
       const silentPath = await stripAudio(videoPath);
       let finalPath = silentPath;
       let audio: { videoId: string; title: string } | null = null;
+      let audioPath: string | undefined;
       try {
         await supabase.from('curated_posts').update({ status: 'audio_search' }).eq('id', post.id);
         audio = await findTrendingAudio();
-        const audioPath = await downloadYTAudio(audio.videoId);
+        audioPath = await downloadYTAudio(audio.videoId);
         await supabase.from('curated_posts').update({ status: 'merging' }).eq('id', post.id);
         finalPath = await mergeAudioVideo(silentPath, audioPath);
       } catch (audioErr: any) {
@@ -154,7 +155,7 @@ export async function processAllPending() {
         hashtags: metadata.hashtags,
       }).eq('id', post.id);
 
-      cleanup(videoPath, silentPath, audioPath, finalPath);
+      cleanup(...[videoPath, silentPath, audioPath, finalPath].filter(Boolean) as string[]);
       processed++;
 
     } catch (err: any) {
