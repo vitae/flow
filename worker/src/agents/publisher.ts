@@ -36,20 +36,24 @@ async function handlePost(post: CuratedPost) {
 
   // Cross-post to Instagram Reels
   let igMediaId: string | null = null;
+  let igError: string | null = null;
   try {
     const igCaption = `${post.title}\n\n${hashtagStr}\n\nOriginal: ${post.ig_permalink}\n🌊 gwdf.pro`;
     igMediaId = await publishToInstagramReels(post.video_path, igCaption);
     console.log(`[publisher] Instagram Reel posted: ${igMediaId}`);
   } catch (err: any) {
+    igError = err.message;
     console.error(`[publisher] IG Reels failed (non-fatal):`, err.message);
   }
 
   // Cross-post to Facebook Reels
   let fbVideoId: string | null = null;
+  let fbError: string | null = null;
   try {
     fbVideoId = await publishToFacebookReels(post.video_path, fullDescription);
     console.log(`[publisher] Facebook Reel posted: ${fbVideoId}`);
   } catch (err: any) {
+    fbError = err.message;
     console.error(`[publisher] FB Reels failed (non-fatal):`, err.message);
   }
 
@@ -60,6 +64,8 @@ async function handlePost(post: CuratedPost) {
     youtube_video_id: ytVideoId,
     ig_reels_id: igMediaId,
     fb_reels_id: fbVideoId,
+    _igError: igError,
+    _fbError: fbError,
   };
 }
 
@@ -98,9 +104,10 @@ export function startPublisher() {
       }
 
       const updates = await handlePost(post as CuratedPost);
+      const { _igError, _fbError, ...dbUpdates } = updates;
       await supabase
         .from('curated_posts')
-        .update({ ...updates, status: 'posted', error_message: null })
+        .update({ ...dbUpdates, status: 'posted', error_message: null })
         .eq('id', post.id);
 
       console.log(`[publisher] ✓ ${post.id} → posted`);
@@ -110,9 +117,9 @@ export function startPublisher() {
         title: post.title || 'Untitled',
         igPermalink: post.ig_permalink,
         igLikeCount: post.ig_like_count || 0,
-        youtubeVideoId: updates.youtube_video_id,
-        igReelsId: updates.ig_reels_id,
-        fbReelsId: updates.fb_reels_id,
+        youtube: { id: updates.youtube_video_id, error: null },
+        igReels: { id: updates.ig_reels_id, error: updates._igError || null },
+        fbReels: { id: updates.fb_reels_id, error: updates._fbError || null },
         totalPosted: dailyCount + 1,
       });
 

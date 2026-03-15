@@ -17,14 +17,48 @@ function getTransporter(): nodemailer.Transporter {
   return transporter;
 }
 
+interface PlatformResult {
+  id: string | null;
+  error: string | null;
+}
+
 interface PostNotification {
   title: string;
   igPermalink: string;
   igLikeCount: number;
-  youtubeVideoId: string | null;
-  igReelsId: string | null;
-  fbReelsId: string | null;
+  youtube: PlatformResult;
+  igReels: PlatformResult;
+  fbReels: PlatformResult;
   totalPosted: number;
+}
+
+function statusBadge(result: PlatformResult): string {
+  if (result.error) {
+    return `<span style="background: #fef2f2; color: #dc2626; padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 13px;">Error</span>`;
+  }
+  return `<span style="background: #f0fdf4; color: #16a34a; padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 13px;">No Errors</span>`;
+}
+
+function platformRow(icon: string, name: string, result: PlatformResult, urlPrefix: string): string {
+  const badge = statusBadge(result);
+  const link = result.id
+    ? `<a href="${urlPrefix}${result.id}" style="color: #7c3aed; text-decoration: none; word-break: break-all;">${urlPrefix}${result.id}</a>`
+    : '<span style="color: #9ca3af;">—</span>';
+  const errorDetail = result.error
+    ? `<div style="color: #dc2626; font-size: 12px; margin-top: 4px;">${result.error}</div>`
+    : '';
+
+  return `
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; width: 160px;">
+        <span style="font-size: 18px;">${icon}</span> <strong>${name}</strong><br/>
+        ${badge}
+      </td>
+      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top;">
+        ${link}${errorDetail}
+      </td>
+    </tr>
+  `;
 }
 
 export async function sendPostNotification(post: PostNotification): Promise<void> {
@@ -33,35 +67,10 @@ export async function sendPostNotification(post: PostNotification): Promise<void
     return;
   }
 
-  interface PlatformLink { name: string; url: string; icon: string }
-  const platforms: PlatformLink[] = [];
-  if (post.youtubeVideoId) platforms.push({
-    name: 'YouTube Shorts',
-    url: `https://youtube.com/shorts/${post.youtubeVideoId}`,
-    icon: '▶️',
-  });
-  if (post.igReelsId) platforms.push({
-    name: 'Instagram Reels',
-    url: `https://www.instagram.com/reel/${post.igReelsId}/`,
-    icon: '📸',
-  });
-  if (post.fbReelsId) platforms.push({
-    name: 'Facebook Reels',
-    url: `https://www.facebook.com/reel/${post.fbReelsId}`,
-    icon: '👥',
-  });
-
-  const subject = `Flow AI: Video #${post.totalPosted} Posted - ${post.title}`;
-  const platformRows = platforms.map(p => `
-    <tr>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb;">
-        <span style="font-size: 18px;">${p.icon}</span> <strong>${p.name}</strong>
-      </td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb;">
-        <a href="${p.url}" style="color: #7c3aed; text-decoration: none;">${p.url}</a>
-      </td>
-    </tr>
-  `).join('');
+  const hasAnyError = post.youtube.error || post.igReels.error || post.fbReels.error;
+  const subject = hasAnyError
+    ? `Flow AI: Video #${post.totalPosted} Posted (with errors) - ${post.title}`
+    : `Flow AI: Video #${post.totalPosted} Posted - ${post.title}`;
 
   const html = `
     <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -84,11 +93,12 @@ export async function sendPostNotification(post: PostNotification): Promise<void
           <td style="padding: 8px 12px; font-size: 18px; font-weight: bold;">${post.totalPosted} / 24</td>
         </tr>
       </table>
-      <h3 style="color: #7c3aed;">Watch It Live:</h3>
+      <h3 style="color: #7c3aed;">Platform Status:</h3>
       <table style="width: 100%; border-collapse: collapse; margin: 8px 0;">
-        ${platformRows}
+        ${platformRow('▶️', 'YouTube Shorts', post.youtube, 'https://youtube.com/shorts/')}
+        ${platformRow('📸', 'Instagram Reels', post.igReels, 'https://www.instagram.com/reel/')}
+        ${platformRow('👥', 'Facebook Reels', post.fbReels, 'https://www.facebook.com/reel/')}
       </table>
-      ${platforms.length === 0 ? '<p style="color: #9ca3af;">No platform links available yet.</p>' : ''}
       <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">Sent by Flow AI Pipeline | gwdf.pro</p>
     </div>
   `;
