@@ -221,7 +221,7 @@ export default function HomePage() {
               &quot;Reach everyone on the planet with your performance. Why not?&quot;
             </p>
             <p className="text-sm text-flow-green font-medium mb-3">
-              GWDF.pro is designed to boost your performance flow arts career.
+              GWDF.pro is designed to boost your flow arts performance career.
             </p>
             <p className="text-sm text-flow-gray-400 mb-10">
               We now have the technology to do it. Upload once → AI adds captions, trending music & hashtags → Posts to YouTube, Instagram, Facebook & Threads simultaneously.
@@ -255,7 +255,7 @@ export default function HomePage() {
             transition={{ delay: 0.4 }}
           >
             <p className="text-sm uppercase tracking-wider text-flow-gray-500 mb-6">
-              Your content reaches 3,000,000,000+ users
+              Your content reaches 999,999,999+ users
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               {platforms.map((p) => (
@@ -516,7 +516,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
             >
-              <Mic2 className="w-8 h-8 text-flow-cyan mx-auto mb-2" />
+              <Mic2 className="w-8 h-8 text-flow-yellow mx-auto mb-2" />
               <h4 className="font-display font-semibold text-sm mb-1">DJs</h4>
               <p className="text-[10px] text-flow-gray-400">EDM, house, bass, dubstep & more</p>
             </motion.div>
@@ -527,7 +527,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <Paintbrush className="w-8 h-8 text-flow-yellow mx-auto mb-2" />
+              <Paintbrush className="w-8 h-8 text-flow-cyan mx-auto mb-2" />
               <h4 className="font-display font-semibold text-sm mb-1">Painters</h4>
               <p className="text-[10px] text-flow-gray-400">Live painting, murals, body art & visuals</p>
             </motion.div>
@@ -550,12 +550,12 @@ export default function HomePage() {
       <section className="py-20 px-6 border-t border-flow-green/10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 rounded-full border border-flow-cyan/20 bg-flow-cyan/5 px-4 py-1.5 text-sm text-flow-cyan mb-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-flow-yellow/20 bg-flow-yellow/5 px-4 py-1.5 text-sm text-flow-yellow mb-6">
               <Mic2 className="w-3.5 h-3.5" />
               DJ Platform
             </div>
             <h2 className="font-display font-bold text-3xl md:text-4xl mb-4">
-              DJs: <span className="text-flow-cyan">promote your music</span> & get booked
+              DJs: <span className="text-flow-yellow">promote your music</span> & get booked
             </h2>
             <p className="text-flow-gray-300 text-lg max-w-2xl mx-auto">
               Create your DJ profile, upload mixes, and get discovered by event producers looking for talent in your state.
@@ -569,7 +569,7 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <Music className="w-8 h-8 text-flow-cyan mx-auto mb-3" />
+              <Music className="w-8 h-8 text-flow-yellow mx-auto mb-3" />
               <h3 className="font-display font-semibold mb-2">Upload Mixes</h3>
               <p className="text-xs text-flow-gray-400">Share your sets, get plays, and build your fanbase. Flow artists discover music through your profile.</p>
             </motion.div>
@@ -615,12 +615,12 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <div className="inline-flex items-center gap-2 rounded-full border border-flow-yellow/20 bg-flow-yellow/5 px-4 py-1.5 text-sm text-flow-yellow mb-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-flow-cyan/20 bg-flow-cyan/5 px-4 py-1.5 text-sm text-flow-cyan mb-4">
                 <Paintbrush className="w-3.5 h-3.5" />
                 Live Painters
               </div>
               <h2 className="font-display font-bold text-2xl md:text-3xl mb-4">
-                Painters: <span className="text-flow-yellow">showcase your art</span> & get booked
+                Painters: <span className="text-flow-cyan">showcase your art</span> & get booked
               </h2>
               <p className="text-flow-gray-300 mb-6">
                 Live painters, muralists, and body artists — create your profile, share your portfolio, and get discovered by event producers looking for visual talent.
@@ -633,12 +633,12 @@ export default function HomePage() {
                   'Accept bookings for festivals, galleries & private events',
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2.5 text-sm text-flow-gray-300">
-                    <Check className="w-4 h-4 text-flow-yellow mt-0.5 shrink-0" />
+                    <Check className="w-4 h-4 text-flow-cyan mt-0.5 shrink-0" />
                     {item}
                   </div>
                 ))}
               </div>
-              <Link href="/auth/login" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm bg-flow-yellow/10 text-flow-yellow border border-flow-yellow/20 hover:bg-flow-yellow/20 transition-all">
+              <Link href="/auth/login" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm bg-flow-cyan/10 text-flow-cyan border border-flow-cyan/20 hover:bg-flow-cyan/20 transition-all">
                 <Paintbrush className="w-4 h-4" /> Create Painter Profile
               </Link>
             </motion.div>
@@ -693,27 +693,20 @@ export default function HomePage() {
             <h2 className="font-display font-black text-3xl md:text-5xl leading-tight tracking-tight mb-6">
               Tired of getting <span className="text-flow-red">a few hundred views?</span>
               <br />
-              <span className="text-flow-green text-glow-green">Imagine reaching 3,000,000,000.</span>
+              <span className="text-flow-green text-glow-green">Imagine reaching 999,999,999.</span>
             </h2>
 
             <p className="text-lg text-flow-gray-200 max-w-3xl mx-auto mb-8 leading-relaxed">
-              You didn&apos;t master the art of flow just to be invisible online.
-              Your content deserves to be seen by <span className="text-flow-green font-semibold">every person on every platform</span>.
+              Your content deserves to be seen. Upload once → we post it to <span className="text-flow-green font-semibold">every platform, simultaneously</span>.
             </p>
 
-            <div className="glass-card border-flow-green/20 p-8 max-w-3xl mx-auto mb-10">
+            <div className="glass-card border-flow-green/20 p-6 max-w-3xl mx-auto mb-10">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <Radio className="w-5 h-5 text-flow-green animate-pulse" />
-                <span className="font-display font-bold text-flow-green text-lg">24/7 NON-STOP POSTING SERVER</span>
-                <Radio className="w-5 h-5 text-flow-green animate-pulse" />
+                <span className="font-display font-bold text-flow-green text-lg">24/7 POSTING SERVER</span>
               </div>
-              <p className="text-flow-gray-200 mb-6 leading-relaxed">
-                Subscribe and your content enters our <span className="text-white font-semibold">always-on distribution engine</span>.
-                Every upload is processed with AI captions, trending music, and optimized hashtags — then posted to
-                <span className="text-flow-green font-semibold"> every platform, simultaneously</span>. Our servers never sleep.
-              </p>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 {platforms.map((p) => (
                   <div key={p.name} className="text-center">
                     <p className="text-xl font-display font-black" style={{ color: p.color }}>{p.users}</p>
@@ -722,35 +715,31 @@ export default function HomePage() {
                 ))}
               </div>
 
-              <div className="bg-flow-green/5 rounded-xl border border-flow-green/20 p-4">
-                <p className="font-display font-black text-2xl md:text-3xl text-flow-green mb-1">3,000,000,000+ Users</p>
-                <p className="text-sm text-flow-gray-300">Total reach — your content hits them all with one upload</p>
+              <div className="bg-flow-green/5 rounded-xl border border-flow-green/20 p-3 text-center">
+                <p className="font-display font-black text-xl text-flow-green">999,999,999+ Total Reach</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto mb-10">
-              <div className="glass-card p-5 text-center">
-                <Globe className="w-8 h-8 text-flow-green mx-auto mb-3" />
-                <h3 className="font-display font-semibold mb-1">Global Reach</h3>
-                <p className="text-xs text-flow-gray-400">Every platform. Every audience. Automatically.</p>
+            <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto mb-10">
+              <div className="text-center">
+                <Globe className="w-6 h-6 text-flow-green mx-auto mb-2" />
+                <p className="text-xs font-semibold">All Platforms</p>
               </div>
-              <div className="glass-card p-5 text-center">
-                <DollarSign className="w-8 h-8 text-flow-magenta mx-auto mb-3" />
-                <h3 className="font-display font-semibold mb-1">Make Money Flowing</h3>
-                <p className="text-xs text-flow-gray-400">More views = brand deals, gigs, and sponsorships.</p>
+              <div className="text-center">
+                <DollarSign className="w-6 h-6 text-flow-magenta mx-auto mb-2" />
+                <p className="text-xs font-semibold">Get Paid to Flow</p>
               </div>
-              <div className="glass-card p-5 text-center">
-                <TrendingUp className="w-8 h-8 text-flow-yellow mx-auto mb-3" />
-                <h3 className="font-display font-semibold mb-1">Grow Faster</h3>
-                <p className="text-xs text-flow-gray-400">AI rides the trending wave for you.</p>
+              <div className="text-center">
+                <TrendingUp className="w-6 h-6 text-flow-yellow mx-auto mb-2" />
+                <p className="text-xs font-semibold">AI Growth Engine</p>
               </div>
             </div>
 
-            <p className="text-xl md:text-2xl font-display font-bold text-white mb-2">
+            <p className="text-xl font-display font-bold text-white mb-2">
               Start making money doing what you love.
             </p>
             <p className="text-flow-gray-300 mb-8">
-              Pick a plan and join the 24/7 posting server today.
+              Pick a plan below or try a single upload for $5.
             </p>
           </motion.div>
         </div>
@@ -772,16 +761,36 @@ export default function HomePage() {
             </div>
 
             <h2 className="font-display font-black text-3xl md:text-4xl mb-4">
-              Test the waters for <span className="text-flow-cyan">just $5</span>
+              Try it for <span className="text-flow-cyan">$5</span>
             </h2>
 
-            <p className="text-lg text-flow-gray-200 max-w-2xl mx-auto mb-3 leading-relaxed">
-              Join our early alpha tester program with a one-time payment of $5.
-              Get full access to the platform, upload videos, and see the power of automated distribution.
+            <p className="text-flow-gray-200 max-w-2xl mx-auto mb-3">
+              One payment. Full access. Upload a video and watch it go everywhere.
             </p>
 
-            <p className="text-flow-green font-display font-bold text-lg mb-8">
+            {/* How it works — trust builder */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 text-left max-w-3xl mx-auto">
+              {[
+                { step: '1', title: 'Pay $5', desc: 'One-time. No subscription.', color: '#00FFFF' },
+                { step: '2', title: 'Create Account', desc: 'Enter your email or connect Instagram.', color: '#00FF00' },
+                { step: '3', title: 'Profile Auto-Built', desc: 'Instagram data imports your name, photo & bio.', color: '#FF00FF' },
+                { step: '4', title: 'Get Discovered', desc: 'Promoters find you. Artists connect. Gigs come to you.', color: '#FFFF00' },
+              ].map((s) => (
+                <div key={s.step} className="flex flex-col items-center text-center">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center font-display font-black text-black mb-2" style={{ backgroundColor: s.color }}>
+                    {s.step}
+                  </div>
+                  <p className="text-sm font-display font-bold mb-0.5">{s.title}</p>
+                  <p className="text-[11px] text-flow-gray-400">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-flow-green font-display font-bold text-lg mb-2">
               If our app isn&apos;t helpful — full refund. No questions asked.
+            </p>
+            <p className="text-xs text-flow-gray-400 mb-6">
+              Connect your Instagram and your profile is built automatically. No forms to fill out.
             </p>
 
             <button
@@ -813,8 +822,11 @@ export default function HomePage() {
               Choose your <span className="text-flow-green">flow</span>
             </h2>
             <p className="text-flow-gray-300 text-lg mb-2">Start free. Scale when you&apos;re ready.</p>
-            <p className="text-sm text-flow-gray-400">
+            <p className="text-sm text-flow-gray-400 mb-1">
               Every plan includes <span className="text-flow-green font-medium">24/7 posting server</span> + community access + booking profile
+            </p>
+            <p className="text-xs text-flow-gray-500">
+              Sign up with Instagram → your profile is auto-created → start getting discovered by promoters
             </p>
           </div>
 
@@ -886,8 +898,11 @@ export default function HomePage() {
                 <h3 className="font-display font-bold text-xl mb-1">
                   <span className="text-flow-cyan">Stay Hydrated!</span> Upload a Video
                 </h3>
-                <p className="text-sm text-flow-gray-300">
+                <p className="text-sm text-flow-gray-300 mb-2">
                   For $5, we share it to the entire world. AI adds captions, trending music & hashtags → posted to all platforms.
+                </p>
+                <p className="text-[11px] text-flow-gray-500">
+                  After payment, connect your Instagram to auto-create your artist profile and get discoverable by event producers.
                 </p>
               </div>
 
