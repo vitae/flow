@@ -23,7 +23,7 @@ const VIRAL_HASHTAGS = [
   'motivation', 'inspiration', 'lifehack', 'howto', 'tutorial',
   'beautiful', 'nature', 'travel', 'adventure',
 ];
-const HASHTAGS_PER_DAY = 20;
+const HASHTAGS_PER_DAY = 4; // 4 hashtags/day × 2 calls each = 8 API calls/day (well under 30/week limit)
 
 function appsecretProof(token: string): string {
   return crypto.createHmac('sha256', process.env.META_APP_SECRET!).update(token).digest('hex');
