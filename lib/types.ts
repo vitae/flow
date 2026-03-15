@@ -106,6 +106,26 @@ export interface VideoJob {
   created_at: string;
 }
 
+export type CurationStatus = 'pending' | 'processing' | 'audio_search' | 'merging' | 'uploading' | 'posted' | 'failed';
+
+export interface CuratedPost {
+  id: string;
+  ig_media_id: string;
+  ig_username: string;
+  ig_permalink: string;
+  ig_like_count: number;
+  ig_media_url: string | null;
+  youtube_video_id: string | null;
+  youtube_audio_id: string | null;
+  youtube_audio_title: string | null;
+  title: string | null;
+  description: string | null;
+  hashtags: string[];
+  status: CurationStatus;
+  error_message: string | null;
+  created_at: string;
+}
+
 export interface MusicTrack {
   id: string;
   youtube_video_id: string;
