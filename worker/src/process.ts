@@ -65,7 +65,7 @@ export async function processAllPending() {
 
   if (queryError) {
     console.error('Supabase query error:', queryError);
-    return { processed: 0, error: queryError.message };
+    return { processed: 0, error: queryError.message, url: process.env.NEXT_PUBLIC_SUPABASE_URL };
   }
 
   console.log('Found pending posts:', pending?.length || 0);
