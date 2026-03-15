@@ -93,26 +93,29 @@ export async function processAllPending() {
     try {
       await supabase.from('curated_posts').update({ status: 'processing' }).eq('id', post.id);
 
-      // 1. Download IG video via permalink (media_url not available from hashtag search)
+      // 1. Download IG video
       const downloadUrl = post.ig_media_url || post.ig_permalink;
       const videoPath = await downloadFile(downloadUrl, `${post.ig_media_id}.mp4`);
 
-      // 2. Strip audio
-      const silentPath = await stripAudio(videoPath);
+      // 2. Try to swap audio with trending music, fallback to original audio
+      let finalPath = videoPath;
+      let audio: { videoId: string; title: string } | null = null;
+      try {
+        await supabase.from('curated_posts').update({ status: 'audio_search' }).eq('id', post.id);
+        audio = await findTrendingAudio();
+        const audioPath = await downloadYTAudio(audio.videoId);
+        const silentPath = await stripAudio(videoPath);
+        await supabase.from('curated_posts').update({ status: 'merging' }).eq('id', post.id);
+        finalPath = await mergeAudioVideo(silentPath, audioPath);
+      } catch (audioErr: any) {
+        console.log('Audio swap failed, using original audio:', audioErr.message);
+        finalPath = videoPath;
+      }
 
-      // 3. Find trending audio
-      await supabase.from('curated_posts').update({ status: 'audio_search' }).eq('id', post.id);
-      const audio = await findTrendingAudio();
-      const audioPath = await downloadYTAudio(audio.videoId);
-
-      // 4. Merge
-      await supabase.from('curated_posts').update({ status: 'merging' }).eq('id', post.id);
-      const finalPath = await mergeAudioVideo(silentPath, audioPath);
-
-      // 5. Generate metadata
+      // 3. Generate metadata
       const metadata = await generateMetadata(post.ig_username, post.ig_permalink);
 
-      // 6. Upload to YouTube
+      // 4. Upload to YouTube
       await supabase.from('curated_posts').update({ status: 'uploading' }).eq('id', post.id);
       const hashtagStr = metadata.hashtags.map((h: string) => `#${h}`).join(' ');
       const ytVideoId = await uploadToYouTube(
@@ -122,12 +125,12 @@ export async function processAllPending() {
         metadata.hashtags,
       );
 
-      // 7. Update record
+      // 5. Update record
       await supabase.from('curated_posts').update({
         status: 'posted',
         youtube_video_id: ytVideoId,
-        youtube_audio_id: audio.videoId,
-        youtube_audio_title: audio.title,
+        youtube_audio_id: audio?.videoId || null,
+        youtube_audio_title: audio?.title || 'original',
         title: metadata.title,
         description: metadata.description,
         hashtags: metadata.hashtags,
