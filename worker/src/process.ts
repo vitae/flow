@@ -10,17 +10,29 @@ function getSupabase() {
   );
 }
 
+async function getUsedAudioIds(): Promise<Set<string>> {
+  const supabase = getSupabase();
+  const { data } = await supabase
+    .from('curated_posts')
+    .select('youtube_audio_id')
+    .not('youtube_audio_id', 'is', null);
+  return new Set((data || []).map((r: any) => r.youtube_audio_id));
+}
+
 async function findTrendingAudio(): Promise<{ videoId: string; title: string }> {
+  const usedIds = await getUsedAudioIds();
   const queries = [
+    'trending shorts music 2025',
+    'viral tiktok songs',
     'edm dance music',
     'bass house music',
     'rave festival music',
-    'electronic dance music mix',
+    'electronic dance music',
     'dubstep drops',
     'flow arts music',
+    'popular shorts background music',
   ];
 
-  // Try multiple queries until we find results
   for (let i = 0; i < 3; i++) {
     const query = queries[Math.floor(Math.random() * queries.length)];
     console.log('Searching trending audio:', query);
@@ -32,14 +44,20 @@ async function findTrendingAudio(): Promise<{ videoId: string; title: string }> 
         q: query,
         type: 'video',
         order: 'viewCount',
-        maxResults: '10',
+        maxResults: '20',
         key: process.env.YOUTUBE_API_KEY!,
       })
     );
     const data = await res.json();
     console.log('YouTube search results:', data.items?.length || 0, 'error:', data.error?.message);
 
-    const item = data.items?.[Math.floor(Math.random() * Math.min(data.items.length, 5))];
+    if (!data.items?.length) continue;
+
+    // Filter out already-used songs
+    const unused = data.items.filter((item: any) => !usedIds.has(item.id.videoId));
+    console.log('Unused songs:', unused.length, '/', data.items.length);
+
+    const item = unused[Math.floor(Math.random() * Math.min(unused.length, 5))];
     if (item) {
       return { videoId: item.id.videoId, title: item.snippet.title };
     }
@@ -97,19 +115,19 @@ export async function processAllPending() {
       const downloadUrl = post.ig_media_url || post.ig_permalink;
       const videoPath = await downloadFile(downloadUrl, `${post.ig_media_id}.mp4`);
 
-      // 2. Try to swap audio with trending music, fallback to original audio
-      let finalPath = videoPath;
+      // 2. Always strip original audio, then overlay trending music
+      const silentPath = await stripAudio(videoPath);
+      let finalPath = silentPath;
       let audio: { videoId: string; title: string } | null = null;
       try {
         await supabase.from('curated_posts').update({ status: 'audio_search' }).eq('id', post.id);
         audio = await findTrendingAudio();
         const audioPath = await downloadYTAudio(audio.videoId);
-        const silentPath = await stripAudio(videoPath);
         await supabase.from('curated_posts').update({ status: 'merging' }).eq('id', post.id);
         finalPath = await mergeAudioVideo(silentPath, audioPath);
       } catch (audioErr: any) {
-        console.log('Audio swap failed, using original audio:', audioErr.message);
-        finalPath = videoPath;
+        console.log('Trending audio overlay failed, uploading silent video:', audioErr.message);
+        finalPath = silentPath;
       }
 
       // 3. Generate metadata
