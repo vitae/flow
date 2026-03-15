@@ -24,14 +24,21 @@ export async function runScout(): Promise<{ discovered: number; queued: number }
 
   const toQueue = newVideos.slice(0, 3);
   if (toQueue.length > 0) {
-    const rows = toQueue.map(v => ({
-      ig_media_id: v.id,
-      ig_username: v.caption?.match(/@(\w+)/)?.[1] || 'unknown',
-      ig_permalink: v.permalink,
-      ig_like_count: v.like_count || 0,
-      status: 'pending',
-      hashtags: [],
-    }));
+    const rows = toQueue.map(v => {
+      // Extract username from caption mentions or permalink user info
+      const mentionMatch = v.caption?.match(/@(\w+)/);
+      // IG Graph API recent_media doesn't include username directly,
+      // so extract from caption or use 'flowartist' as fallback
+      const username = mentionMatch?.[1] || 'flowartist';
+      return {
+        ig_media_id: v.id,
+        ig_username: username,
+        ig_permalink: v.permalink,
+        ig_like_count: v.like_count || 0,
+        status: 'pending',
+        hashtags: [],
+      };
+    });
     await supabase.from('curated_posts').insert(rows);
     console.log(`[scout] Queued ${rows.length} posts`);
   }

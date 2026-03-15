@@ -63,6 +63,8 @@ async function searchHashtag(hashtag: string, token: string, igUserId: string): 
   return (mediaData.data || []).filter((m: IGMedia) => m.media_type === 'VIDEO');
 }
 
+const MIN_LIKES_FOR_VIRAL = 10_000; // Only pick videos with 10k+ likes (proxy for millions of views)
+
 export async function discoverViralVideos(): Promise<IGMedia[]> {
   const { token, igUserId } = await getIGAccessToken();
   const hashtags = getTodaysHashtags();
@@ -76,9 +78,20 @@ export async function discoverViralVideos(): Promise<IGMedia[]> {
   }
 
   const unique = [...new Map(allVideos.map(v => [v.id, v])).values()];
-  unique.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
-  console.log(`[scout] Total unique videos: ${unique.length}`);
-  return unique.slice(0, 5);
+  // Only keep truly viral videos (10k+ likes = likely millions of views)
+  const viral = unique.filter(v => (v.like_count || 0) >= MIN_LIKES_FOR_VIRAL);
+  viral.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+  console.log(`[scout] Total unique: ${unique.length}, viral (${MIN_LIKES_FOR_VIRAL}+ likes): ${viral.length}`);
+
+  // If no viral videos found, lower threshold but still require 1k+ likes
+  if (viral.length === 0) {
+    const decent = unique.filter(v => (v.like_count || 0) >= 1000);
+    decent.sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+    console.log(`[scout] No viral videos, falling back to ${decent.length} with 1k+ likes`);
+    return decent.slice(0, 5);
+  }
+
+  return viral.slice(0, 5);
 }
 
 // --- Private API for video URL extraction ---
