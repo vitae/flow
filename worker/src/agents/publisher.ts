@@ -105,9 +105,19 @@ export function startPublisher() {
 
       const updates = await handlePost(post as CuratedPost);
       const { _igError, _fbError, ...dbUpdates } = updates;
+
+      // Build error summary for DB (so we can see IG/FB failures)
+      const errors: string[] = [];
+      if (_igError) errors.push(`IG: ${_igError}`);
+      if (_fbError) errors.push(`FB: ${_fbError}`);
+
       await supabase
         .from('curated_posts')
-        .update({ ...dbUpdates, status: 'posted', error_message: null })
+        .update({
+          ...dbUpdates,
+          status: 'posted',
+          error_message: errors.length ? errors.join(' | ') : null,
+        })
         .eq('id', post.id);
 
       console.log(`[publisher] ✓ ${post.id} → posted`);
