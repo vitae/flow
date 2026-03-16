@@ -46,10 +46,14 @@ export function createAgentLoop(
 
         await logActivity(config.name, 'processing', { post_id: post.id, ig_permalink: post.ig_permalink });
         const updates = await processOne(post as CuratedPost);
-        await supabase
+        const { error: updateError } = await supabase
           .from('curated_posts')
           .update({ ...updates, status: config.outputStatus, error_message: null })
           .eq('id', post.id);
+
+        if (updateError) {
+          throw new Error(`DB update failed after processing: ${updateError.message}`);
+        }
 
         processed++;
         console.log(`[${config.name}] ✓ ${post.id} → ${config.outputStatus}`);
