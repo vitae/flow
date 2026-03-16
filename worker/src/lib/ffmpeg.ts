@@ -157,6 +157,36 @@ export async function ensureVertical(inputPath: string): Promise<string> {
   });
 }
 
+/**
+ * Scales a vertical video to exactly 1080x1920 for optimal YouTube Shorts quality.
+ * Skips if already at target resolution. Pads if aspect ratio doesn't perfectly match.
+ */
+export async function ensureShortsResolution(inputPath: string): Promise<string> {
+  const { width, height } = await getVideoResolution(inputPath);
+
+  // Already at target resolution
+  if (width === 1080 && height === 1920) {
+    console.log(`Video already 1080x1920, no scaling needed`);
+    return inputPath;
+  }
+
+  console.log(`Scaling ${width}x${height} → 1080x1920 for YouTube Shorts`);
+  const ext = path.extname(inputPath);
+  const outputPath = inputPath.replace(ext, '_1080x1920.mp4');
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .videoFilter('scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black')
+      .videoCodec('libx264')
+      .outputOptions(['-preset', 'fast', '-crf', '23'])
+      .audioCodec('copy')
+      .output(outputPath)
+      .on('end', () => resolve(outputPath))
+      .on('error', reject)
+      .run();
+  });
+}
+
 export async function trimToShorts(inputPath: string, maxDuration: number = 180): Promise<string> {
   const duration = await getVideoDuration(inputPath);
   if (duration <= maxDuration) {

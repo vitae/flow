@@ -60,6 +60,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'filename and contentType required' }, { status: 400 });
       }
 
+      // Validate video content type (iOS sends MOV as video/quicktime)
+      const allowedTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/mov'];
+      if (!allowedTypes.includes(contentType) && !contentType.startsWith('video/')) {
+        return NextResponse.json({ error: `Unsupported content type: ${contentType}. Must be a video file.` }, { status: 400 });
+      }
+
       const id = crypto.randomUUID();
       const ext = filename.split('.').pop() || 'mp4';
       const storagePath = `uploads/${id}.${ext}`;

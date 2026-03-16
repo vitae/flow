@@ -144,8 +144,12 @@ export default function ShortcutSetupPage() {
                       {`{`}<br/>
                       &nbsp;&nbsp;{`"mode": "sign",`}<br/>
                       &nbsp;&nbsp;{`"filename": fileName,`}<br/>
-                      &nbsp;&nbsp;{`"contentType": "video/mp4"`}<br/>
+                      &nbsp;&nbsp;{`"contentType": "video/quicktime"`}<br/>
                       {`}`}
+                    </div>
+                    <div className="text-white/50 text-xs mt-1">
+                      Use <code className="px-1 py-0.5 bg-white/10 rounded">video/quicktime</code> for iPhone videos (.MOV).
+                      Use <code className="px-1 py-0.5 bg-white/10 rounded">video/mp4</code> if sharing downloaded .mp4 files.
                     </div>
                   </div>
                 </div>
@@ -257,8 +261,8 @@ export default function ShortcutSetupPage() {
             <div className="flex items-start gap-3">
               <span className="text-white/40 shrink-0 w-24">Sign Body</span>
               <div className="flex items-center gap-2 flex-1">
-                <code className="px-2 py-1 bg-white/10 rounded text-xs">{`{"mode":"sign","filename":"video.mp4","contentType":"video/mp4"}`}</code>
-                <CopyButton text='{"mode":"sign","filename":"video.mp4","contentType":"video/mp4"}' />
+                <code className="px-2 py-1 bg-white/10 rounded text-xs">{`{"mode":"sign","filename":"video.mov","contentType":"video/quicktime"}`}</code>
+                <CopyButton text='{"mode":"sign","filename":"video.mov","contentType":"video/quicktime"}' />
               </div>
             </div>
             <div className="flex items-start gap-3">
