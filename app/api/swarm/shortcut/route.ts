@@ -275,20 +275,29 @@ function buildShortcut(baseUrl: string): string {
 </plist>`;
 }
 
-/** Sign a shortcut plist via Apple's signing API */
+/** Sign a shortcut plist via RoutineHub's HubSign service */
 async function signShortcut(unsignedPlist: string): Promise<ArrayBuffer> {
-  const body = new TextEncoder().encode(unsignedPlist);
-  const res = await fetch('https://smoot-signing.ism.apple.com/shortcut', {
+  const res = await fetch('https://hubsign.routinehub.services/sign', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-apple-shortcut',
+      'Content-Type': 'application/json',
+      'User-Agent': 'flow/1.0',
     },
-    body,
+    body: JSON.stringify({
+      shortcutName: 'Upload to Flow',
+      shortcut: unsignedPlist,
+    }),
   });
   if (!res.ok) {
-    throw new Error(`Apple signing API returned ${res.status}: ${await res.text()}`);
+    throw new Error(`HubSign returned ${res.status}: ${await res.text()}`);
   }
-  return res.arrayBuffer();
+  const buf = await res.arrayBuffer();
+  // Signed shortcuts start with "AEA1" magic bytes
+  const magic = new TextDecoder().decode(new Uint8Array(buf, 0, 4));
+  if (magic !== 'AEA1') {
+    throw new Error('HubSign did not return a valid signed shortcut');
+  }
+  return buf;
 }
 
 export async function GET(req: NextRequest) {
