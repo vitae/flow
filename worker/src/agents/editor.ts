@@ -42,7 +42,7 @@ export const editorAgent = createAgentLoop(
   {
     name: 'editor',
     inputStatus: 'audio_ready',
-    processingStatus: 'processing',
+    processingStatus: 'editing',
     outputStatus: 'edited',
     pollIntervalMs: 10_000,
     batchSize: 2,

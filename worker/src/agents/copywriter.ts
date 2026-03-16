@@ -78,7 +78,7 @@ export const copywriterAgent = createAgentLoop(
   {
     name: 'copywriter',
     inputStatus: 'edited',
-    processingStatus: 'processing',
+    processingStatus: 'writing',
     outputStatus: 'metadata_ready',
     pollIntervalMs: 10_000,
     batchSize: 3,
