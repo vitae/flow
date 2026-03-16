@@ -33,6 +33,9 @@ android/
 # Vercel
 .vercel
 
+# Supabase
+supabase/.temp/
+
 # Claude Code
 .claude/
 .superpowers/
