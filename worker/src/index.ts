@@ -705,25 +705,45 @@ app.post('/push-pipeline', auth, async (_req: any, res: any) => {
 // Test single: take an Instagram reel URL, push it through the entire pipeline, return YouTube URL
 app.post('/test-single', auth, async (req: any, res: any) => {
   const { url } = req.body;
-  if (!url || !url.includes('instagram.com')) {
-    return res.status(400).json({ error: 'Send { url: "https://www.instagram.com/reel/..." }' });
+  // Clean URL and extract shortcode
+  const cleanUrl = url.split('?')[0].replace(/\/+$/, '');
+  const shortcodeMatch = cleanUrl.match(/\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/);
+  if (!shortcodeMatch) {
+    return res.status(400).json({ error: `Cannot extract shortcode from URL: ${url}. Expected format: instagram.com/reel/SHORTCODE or /reels/ or /p/ or /tv/` });
   }
 
   const supabase = getSupabase();
   const log: string[] = [];
 
   try {
-    log.push(`Testing pipeline with: ${url}`);
+    log.push(`Testing pipeline with: ${url} (shortcode: ${shortcodeMatch[2]})`);
 
-    // Extract shortcode for media ID
-    const shortcodeMatch = url.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
-    if (!shortcodeMatch) return res.status(400).json({ error: 'Cannot extract shortcode from URL' });
+    // Check required env vars upfront
+    if (!process.env.INSTAGRAM_SESSION_ID) {
+      return res.json({ ok: false, error: 'INSTAGRAM_SESSION_ID not set — cannot download from Instagram', log });
+    }
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.json({ ok: false, error: 'GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set — cannot upload to YouTube', log });
+    }
+
+    // Check YouTube connection exists before doing any work
+    const { data: ytConn } = await supabase
+      .from('social_connections')
+      .select('id, refresh_token')
+      .eq('platform', 'youtube')
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+    if (!ytConn?.refresh_token) {
+      return res.json({ ok: false, error: 'No YouTube connection with refresh_token in social_connections. Connect YouTube in dashboard Settings first.', log });
+    }
+    log.push('[preflight] YouTube connection OK');
 
     // Create a test post in the DB
     const { data: post, error: insertErr } = await supabase
       .from('curated_posts')
       .insert({
-        ig_media_id: `test_${shortcodeMatch[2]}`,
+        ig_media_id: `test_${shortcodeMatch[2]}_${Date.now()}`,
         ig_username: 'test',
         ig_permalink: url,
         ig_like_count: 0,
@@ -736,42 +756,67 @@ app.post('/test-single', auth, async (req: any, res: any) => {
     if (insertErr || !post) {
       return res.status(500).json({ error: `DB insert failed: ${insertErr?.message}` });
     }
-
     log.push(`Created post ${post.id}`);
 
-    // Step 1: Download
-    log.push('[download] Fetching video from Instagram...');
+    // Step 1: Download video from Instagram
+    log.push('[download] Fetching video from Instagram private API...');
     const { getVideoUrl } = await import('./lib/instagram');
     const { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts } = await import('./lib/ffmpeg');
     const { uploadToYouTube } = await import('./lib/youtube');
 
-    const { url: videoUrl, width, height } = await getVideoUrl(url);
+    let videoUrl: string, width: number, height: number;
+    try {
+      const result = await getVideoUrl(url);
+      videoUrl = result.url;
+      width = result.width;
+      height = result.height;
+    } catch (dlErr: any) {
+      log.push(`[download] FAILED: ${dlErr.message}`);
+      await supabase.from('curated_posts').update({ status: 'failed', error_message: dlErr.message, failed_at_stage: 'downloader' }).eq('id', post.id);
+      return res.json({ ok: false, error: dlErr.message, post_id: post.id, failed_at: 'download', log });
+    }
+
     const videoPath = await downloadFile(videoUrl, `test_${post.id}.mp4`);
     const duration = await getVideoDuration(videoPath);
     log.push(`[download] OK: ${width}x${height}, ${duration.toFixed(1)}s`);
 
     if (duration < 3 || duration > 300) {
-      return res.json({ ok: false, error: `Duration ${duration.toFixed(1)}s out of range`, log });
+      await supabase.from('curated_posts').update({ status: 'failed', error_message: `Duration ${duration.toFixed(1)}s out of range`, failed_at_stage: 'downloader' }).eq('id', post.id);
+      return res.json({ ok: false, error: `Duration ${duration.toFixed(1)}s out of 3-300s range`, post_id: post.id, log });
     }
 
     await supabase.from('curated_posts').update({ status: 'downloaded', video_duration: duration }).eq('id', post.id);
 
     // Step 2: Strip audio
     log.push('[audio] Stripping audio...');
-    const silentPath = await stripAudio(videoPath);
+    let silentPath: string;
+    try {
+      silentPath = await stripAudio(videoPath);
+    } catch (audioErr: any) {
+      log.push(`[audio] FAILED: ${audioErr.message}`);
+      await supabase.from('curated_posts').update({ status: 'failed', error_message: audioErr.message, failed_at_stage: 'audio_engineer' }).eq('id', post.id);
+      return res.json({ ok: false, error: audioErr.message, post_id: post.id, failed_at: 'audio', log });
+    }
     await supabase.from('curated_posts').update({ status: 'audio_ready' }).eq('id', post.id);
     log.push('[audio] OK');
 
-    // Step 3: Edit
-    log.push('[edit] Vertical crop, scale 1080x1920, trim...');
-    let editedPath = await ensureVertical(silentPath);
-    editedPath = await ensureShortsResolution(editedPath);
-    editedPath = await trimToShorts(editedPath, 59);
+    // Step 3: Edit (vertical crop, scale, trim)
+    log.push('[edit] Vertical crop, scale 1080x1920, trim to 59s...');
+    let editedPath: string;
+    try {
+      editedPath = await ensureVertical(silentPath);
+      editedPath = await ensureShortsResolution(editedPath);
+      editedPath = await trimToShorts(editedPath, 59);
+    } catch (editErr: any) {
+      log.push(`[edit] FAILED: ${editErr.message}`);
+      await supabase.from('curated_posts').update({ status: 'failed', error_message: editErr.message, failed_at_stage: 'editor' }).eq('id', post.id);
+      return res.json({ ok: false, error: editErr.message, post_id: post.id, failed_at: 'editor', log });
+    }
     const finalDuration = await getVideoDuration(editedPath);
     await supabase.from('curated_posts').update({ status: 'edited', video_duration: finalDuration }).eq('id', post.id);
     log.push(`[edit] OK: ${finalDuration.toFixed(1)}s`);
 
-    // Step 4: Metadata
+    // Step 4: Generate metadata
     const title = `🔥 Incredible! Watch Till The End`;
     const description = `This might be the most viral video you see today.\n\nOriginal: ${url}\n\n#shorts #viral #trending #fyp #mustwatch`;
     const hashtags = ['shorts', 'viral', 'trending', 'fyp', 'mustwatch'];
@@ -786,7 +831,15 @@ app.post('/test-single', auth, async (req: any, res: any) => {
     const hashtagStr = hashtags.map(h => `#${h}`).join(' ');
     const fullDesc = `${description}\n\n${hashtagStr}\n\nOriginal: ${url}\n🌊 Discover more at gwdf.pro`;
 
-    const ytVideoId = await uploadToYouTube(editedPath, ytTitle, fullDesc, hashtags);
+    let ytVideoId: string;
+    try {
+      ytVideoId = await uploadToYouTube(editedPath, ytTitle, fullDesc, hashtags);
+    } catch (ytErr: any) {
+      log.push(`[publish] YouTube upload FAILED: ${ytErr.message}`);
+      await supabase.from('curated_posts').update({ status: 'failed', error_message: ytErr.message, failed_at_stage: 'publisher' }).eq('id', post.id);
+      return res.json({ ok: false, error: ytErr.message, post_id: post.id, failed_at: 'publisher', log });
+    }
+
     const ytUrl = `https://youtube.com/shorts/${ytVideoId}`;
 
     await supabase.from('curated_posts').update({
@@ -797,15 +850,16 @@ app.post('/test-single', auth, async (req: any, res: any) => {
 
     log.push(`[publish] SUCCESS! ${ytUrl}`);
 
-    // Cleanup temp files
+    // Cleanup temp files (use Set to avoid double-deleting same path)
     const fs = await import('fs');
-    for (const f of [videoPath, silentPath, editedPath]) {
+    const filesToClean = new Set([videoPath, silentPath, editedPath]);
+    for (const f of filesToClean) {
       try { fs.unlinkSync(f); } catch {}
     }
 
     res.json({ ok: true, youtube_url: ytUrl, youtube_video_id: ytVideoId, post_id: post.id, log });
   } catch (err: any) {
-    log.push(`FAILED: ${err.message}`);
+    log.push(`UNEXPECTED ERROR: ${err.message}`);
     res.json({ ok: false, error: err.message, log });
   }
 });

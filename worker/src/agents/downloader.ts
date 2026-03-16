@@ -3,13 +3,20 @@ import { CuratedPost } from '../shared/types';
 import { downloadFile, getVideoDuration, uploadToStorage } from '../lib/ffmpeg';
 import { getVideoUrl } from '../lib/instagram';
 
-const MIN_DURATION = 10;
+const MIN_DURATION = 3; // YouTube Shorts minimum is 3s
 const MAX_DURATION = 300; // Allow up to 5min — editor will trim to 59s for Shorts
 
 async function handlePost(post: CuratedPost) {
   console.log(`[downloader] Downloading ${post.ig_permalink}`);
 
-  const { url, width, height } = await getVideoUrl(post.ig_permalink);
+  let videoData: { url: string; width: number; height: number };
+  try {
+    videoData = await getVideoUrl(post.ig_permalink);
+  } catch (err: any) {
+    // Add the permalink to the error for easier debugging
+    throw new Error(`Failed to get video URL from ${post.ig_permalink}: ${err.message}`);
+  }
+  const { url, width, height } = videoData;
   console.log(`[downloader] Found video: ${width}x${height}`);
 
   const videoPath = await downloadFile(url, `${post.ig_media_id}.mp4`);

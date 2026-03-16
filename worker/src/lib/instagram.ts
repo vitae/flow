@@ -121,8 +121,11 @@ export async function getVideoUrl(permalink: string): Promise<{ url: string; wid
   const sessionId = process.env.INSTAGRAM_SESSION_ID;
   if (!sessionId) throw new Error('INSTAGRAM_SESSION_ID required');
 
-  const shortcode = permalink.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/)?.[2];
-  if (!shortcode) throw new Error(`Cannot extract shortcode from: ${permalink}`);
+  // Handle all Instagram URL formats: /reel/, /reels/, /p/, /tv/, and share URLs
+  // Also strip query params and trailing slashes before matching
+  const cleanUrl = permalink.split('?')[0].replace(/\/+$/, '');
+  const shortcode = cleanUrl.match(/\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/)?.[2];
+  if (!shortcode) throw new Error(`Cannot extract shortcode from: ${permalink} (cleaned: ${cleanUrl})`);
 
   const mediaId = shortcodeToMediaId(shortcode);
   const decodedSessionId = decodeURIComponent(sessionId);
@@ -139,12 +142,22 @@ export async function getVideoUrl(permalink: string): Promise<{ url: string; wid
   if (!res.ok) {
     const body = await res.text();
     console.error('[downloader] IG API error:', res.status, body.substring(0, 500));
-    throw new Error(`IG API returned ${res.status}. Session may have expired.`);
+    if (res.status === 401 || res.status === 403 || body.includes('login_required') || body.includes('checkpoint_required')) {
+      throw new Error(`Instagram session expired (${res.status}). Update INSTAGRAM_SESSION_ID env var with a fresh session cookie from your browser.`);
+    }
+    throw new Error(`IG private API returned ${res.status}: ${body.substring(0, 200)}`);
   }
 
-  const data = await res.json();
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error('IG private API returned non-JSON response — session likely expired');
+  }
   const item = data?.items?.[0];
-  if (!item?.video_versions?.length) throw new Error('No video versions found — not a video');
+  if (!item?.video_versions?.length) {
+    throw new Error(`No video versions found for shortcode ${shortcode}. Media may be a photo, deleted, or private.`);
+  }
 
   const best = item.video_versions.sort((a: any, b: any) =>
     (b.width * b.height) - (a.width * a.height)
