@@ -16,6 +16,10 @@ export function ensureTmpDir() {
  * Returns the local file path.
  */
 export async function ensureLocalFile(storagePath: string): Promise<string> {
+  if (!storagePath || typeof storagePath !== 'string') {
+    throw new Error(`Invalid video_path: ${JSON.stringify(storagePath)}. Expected a storage path like "uploads/uuid.mp4".`);
+  }
+
   // Already a local path (from the downloader agent or burst mode)
   if (path.isAbsolute(storagePath) && fs.existsSync(storagePath)) {
     return storagePath;
@@ -237,16 +241,37 @@ export async function trimToShorts(inputPath: string, maxDuration: number = 180)
 
 /**
  * Uploads a local file back to Supabase Storage so it survives worker restarts.
+ * Uses streaming for files > 50MB to avoid memory issues.
  */
 export async function uploadToStorage(localPath: string, storagePath: string): Promise<string> {
   const supabase = getSupabase();
+  const stat = fs.statSync(localPath);
+  const sizeMB = (stat.size / 1024 / 1024).toFixed(1);
+
+  // Read file as buffer (videos are typically < 100MB after processing)
   const buffer = fs.readFileSync(localPath);
+
+  // Try upload first, fall back to update if file already exists
   const { error } = await supabase.storage
     .from('videos')
     .upload(storagePath, buffer, { contentType: 'video/mp4', upsert: true });
 
-  if (error) throw new Error(`Storage upload failed: ${error.message}`);
-  console.log(`[storage] Uploaded ${localPath} → ${storagePath} (${buffer.length} bytes)`);
+  if (error) {
+    // "already exists" or "Duplicate" → try update instead (some Supabase versions ignore upsert)
+    if (error.message?.includes('already exists') || error.message?.includes('Duplicate') || (error as any).statusCode === '409') {
+      console.log(`[storage] File exists, updating: ${storagePath}`);
+      const { error: updateErr } = await supabase.storage
+        .from('videos')
+        .update(storagePath, buffer, { contentType: 'video/mp4', upsert: true });
+      if (updateErr) {
+        throw new Error(`Storage update failed (${sizeMB}MB): ${updateErr.message} [statusCode=${(updateErr as any).statusCode}]`);
+      }
+    } else {
+      throw new Error(`Storage upload failed (${sizeMB}MB): ${error.message} [statusCode=${(error as any).statusCode}]`);
+    }
+  }
+
+  console.log(`[storage] Uploaded ${localPath} → ${storagePath} (${sizeMB}MB)`);
   return storagePath;
 }
 
