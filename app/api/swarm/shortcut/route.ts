@@ -123,17 +123,6 @@ function actionGetDictValue(key: string, input: string): string {
     </dict>`;
 }
 
-function actionUrlGet(url: string): string {
-  return `<dict>
-      <key>WFWorkflowActionIdentifier</key>
-      <string>is.workflow.actions.downloadurl</string>
-      <key>WFWorkflowActionParameters</key>
-      <dict>
-        <key>WFURL</key><string>${esc(url)}</string>
-      </dict>
-    </dict>`;
-}
-
 function actionUrlPostJson(url: string, headers: string[], jsonFields: string[]): string {
   return `<dict>
       <key>WFWorkflowActionIdentifier</key>
@@ -157,6 +146,8 @@ function actionUploadFileViaProxy(
   url: string,
   tokenVar: string,
   storagePathVar: string,
+  fileIdVar: string,
+  fileNameVar: string,
   fileVar: string,
 ): string {
   return `<dict>
@@ -169,6 +160,8 @@ function actionUploadFileViaProxy(
         <key>WFHTTPHeaders</key>${dictValue([
           field('X-Upload-Token', v(tokenVar)),
           field('X-Storage-Path', v(storagePathVar)),
+          field('X-File-Id', v(fileIdVar)),
+          field('X-File-Name', v(fileNameVar)),
           field('Content-Type', txt('video/mp4')),
         ])}
         <key>WFHTTPBodyType</key><string>File</string>
@@ -217,10 +210,6 @@ function buildShortcut(baseUrl: string): string {
     actionGetName(att('videoFile')),
     actionSetVar('fileName'),
 
-    // Warm up the server (avoids cold-start timeout)
-    actionComment('Wake up the server'),
-    actionUrlGet(submitUrl),
-
     // Sign — get upload token and path
     actionComment('Get a signed upload URL'),
     actionUrlPostJson(submitUrl, jsonHeaders, [
@@ -237,19 +226,9 @@ function buildShortcut(baseUrl: string): string {
     actionGetDictValue('token', att('signResponse')),
     actionSetVar('uploadToken'),
 
-    // Upload file via our server proxy (literal URL — no variable URL needed!)
-    // Token and path go in headers, file goes in body
-    actionComment('Upload video to storage'),
-    actionUploadFileViaProxy(uploadUrl, 'uploadToken', 'storagePath', 'videoFile'),
-
-    // Register in pipeline
-    actionComment('Register in the agent pipeline'),
-    actionUrlPostJson(submitUrl, jsonHeaders, [
-      field('mode', txt('register')),
-      field('id', v('fileId')),
-      field('storagePath', v('storagePath')),
-      field('filename', v('fileName')),
-    ]),
+    // Upload file and auto-register in pipeline (combined into one request)
+    actionComment('Upload video and register in pipeline'),
+    actionUploadFileViaProxy(uploadUrl, 'uploadToken', 'storagePath', 'fileId', 'fileName', 'videoFile'),
 
     // Done!
     actionNotification('Flow AI', 'Video uploaded to pipeline!'),

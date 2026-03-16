@@ -161,7 +161,7 @@ app.listen(PORT, async () => {
 
   console.log('Starting all agents...');
 
-  // Start continuous scout (1 hashtag every 6h)
+  // Start continuous scout (1 hashtag every 10min)
   startScout();
 
   // Start all polling agents
