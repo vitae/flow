@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * GET /api/swarm/shortcut?key=YOUR_API_KEY
+ * GET /api/swarm/shortcut
  *
  * Generates and serves a downloadable .shortcut (Apple plist) file
- * with the API key and base URL baked in. One-tap install on iOS.
+ * with the base URL baked in. One-tap install on iOS.
  */
 
 const P = '\uFFFC'; // Object Replacement Character — Apple Shortcuts variable placeholder
@@ -12,6 +12,8 @@ const P = '\uFFFC'; // Object Replacement Character — Apple Shortcuts variable
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+// ── Token builders ──────────────────────────────────────────────────────────
 
 /** Plain text token */
 function txt(s: string): string {
@@ -23,7 +25,7 @@ function txt(s: string): string {
           </dict>`;
 }
 
-/** Named variable reference token */
+/** Named variable reference token (for text fields like JSON body values, headers) */
 function v(name: string): string {
   return `<dict>
             <key>Value</key>
@@ -84,7 +86,7 @@ function dictValue(fields: string[]): string {
         </dict>`;
 }
 
-// --- Action builders ---
+// ── Action builders ─────────────────────────────────────────────────────────
 
 function actionSetVar(name: string, input?: string): string {
   return `<dict>
@@ -147,27 +149,27 @@ function actionUrlPostJson(url: string, headers: string[], jsonFields: string[])
     </dict>`;
 }
 
-/** Convert a variable's text value to a URL type (required before Get Contents of URL) */
-function actionMakeUrl(varName: string): string {
-  return `<dict>
-      <key>WFWorkflowActionIdentifier</key>
-      <string>is.workflow.actions.url</string>
-      <key>WFWorkflowActionParameters</key>
-      <dict>
-        <key>WFURLActionURL</key>${v(varName)}
-      </dict>
-    </dict>`;
-}
-
-function actionUrlPutFile(contentTypeVar: string, fileVar: string): string {
+/**
+ * POST file to a literal URL with token/path in headers.
+ * No variable URLs needed — all dynamic data goes in headers where v() works.
+ */
+function actionUploadFileViaProxy(
+  url: string,
+  tokenVar: string,
+  storagePathVar: string,
+  fileVar: string,
+): string {
   return `<dict>
       <key>WFWorkflowActionIdentifier</key>
       <string>is.workflow.actions.downloadurl</string>
       <key>WFWorkflowActionParameters</key>
       <dict>
-        <key>WFHTTPMethod</key><string>PUT</string>
+        <key>WFURL</key><string>${esc(url)}</string>
+        <key>WFHTTPMethod</key><string>POST</string>
         <key>WFHTTPHeaders</key>${dictValue([
-          field('Content-Type', att(contentTypeVar)),
+          field('X-Upload-Token', v(tokenVar)),
+          field('X-Storage-Path', v(storagePathVar)),
+          field('Content-Type', txt('video/mp4')),
         ])}
         <key>WFHTTPBodyType</key><string>File</string>
         <key>WFRequestVariable</key>${att(fileVar)}
@@ -200,6 +202,7 @@ function actionComment(text: string): string {
 
 function buildShortcut(baseUrl: string): string {
   const submitUrl = `${baseUrl}/api/swarm/submit`;
+  const uploadUrl = `${baseUrl}/api/swarm/upload`;
 
   const jsonHeaders = [
     field('Content-Type', txt('application/json')),
@@ -218,7 +221,7 @@ function buildShortcut(baseUrl: string): string {
     actionComment('Wake up the server'),
     actionUrlGet(submitUrl),
 
-    // Sign — get upload URL
+    // Sign — get upload token and path
     actionComment('Get a signed upload URL'),
     actionUrlPostJson(submitUrl, jsonHeaders, [
       field('mode', txt('sign')),
@@ -226,20 +229,18 @@ function buildShortcut(baseUrl: string): string {
     ]),
     actionSetVar('signResponse'),
 
-    // Extract dictionary values
-    actionGetDictValue('uploadUrl', att('signResponse')),
-    actionSetVar('uploadUrl'),
+    // Extract values from sign response
     actionGetDictValue('id', att('signResponse')),
     actionSetVar('fileId'),
     actionGetDictValue('storagePath', att('signResponse')),
     actionSetVar('storagePath'),
-    actionGetDictValue('contentType', att('signResponse')),
-    actionSetVar('contentType'),
+    actionGetDictValue('token', att('signResponse')),
+    actionSetVar('uploadToken'),
 
-    // Upload file to Supabase
+    // Upload file via our server proxy (literal URL — no variable URL needed!)
+    // Token and path go in headers, file goes in body
     actionComment('Upload video to storage'),
-    actionMakeUrl('uploadUrl'),
-    actionUrlPutFile('contentType', 'videoFile'),
+    actionUploadFileViaProxy(uploadUrl, 'uploadToken', 'storagePath', 'videoFile'),
 
     // Register in pipeline
     actionComment('Register in the agent pipeline'),
@@ -304,7 +305,6 @@ async function signShortcut(unsignedPlist: string): Promise<ArrayBuffer> {
     throw new Error(`HubSign returned ${res.status}: ${await res.text()}`);
   }
   const buf = await res.arrayBuffer();
-  // Signed shortcuts start with "AEA1" magic bytes
   const magic = new TextDecoder().decode(new Uint8Array(buf, 0, 4));
   if (magic !== 'AEA1') {
     throw new Error('HubSign did not return a valid signed shortcut');
@@ -313,7 +313,6 @@ async function signShortcut(unsignedPlist: string): Promise<ArrayBuffer> {
 }
 
 export async function GET(req: NextRequest) {
-  // Derive base URL from request
   const proto = req.headers.get('x-forwarded-proto') || 'https';
   const host = req.headers.get('host') || 'gwdf.pro';
   const baseUrl = `${proto}://${host}`;
