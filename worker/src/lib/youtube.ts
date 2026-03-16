@@ -74,26 +74,37 @@ export async function uploadToYouTube(
   const auth = await getYouTubeAuth();
   const youtube = google.youtube({ version: 'v3', auth });
 
-  const res = await youtube.videos.insert({
-    part: ['snippet', 'status'],
-    requestBody: {
-      snippet: {
-        title,
-        description,
-        tags,
-        categoryId: '24', // Entertainment
-      },
-      status: {
-        privacyStatus: 'public',
-        selfDeclaredMadeForKids: false,
-      },
-    },
-    media: {
-      body: fs.createReadStream(videoPath),
-    },
-  });
+  const fileSize = fs.statSync(videoPath).size;
+  console.log(`[youtube] Uploading ${videoPath} (${(fileSize / 1024 / 1024).toFixed(1)}MB)...`);
 
-  return res.data.id!;
+  try {
+    const res = await youtube.videos.insert({
+      part: ['snippet', 'status'],
+      requestBody: {
+        snippet: {
+          title,
+          description,
+          tags,
+          categoryId: '24', // Entertainment
+        },
+        status: {
+          privacyStatus: 'public',
+          selfDeclaredMadeForKids: false,
+        },
+      },
+      media: {
+        body: fs.createReadStream(videoPath),
+      },
+    });
+
+    return res.data.id!;
+  } catch (err: any) {
+    // Extract detailed YouTube API error reason
+    const apiErrors = err.errors || err.response?.data?.error?.errors || [];
+    const reason = apiErrors[0]?.reason || err.code || 'unknown';
+    const detail = apiErrors[0]?.message || err.message;
+    throw new Error(`YouTube upload failed [${reason}]: ${detail}`);
+  }
 }
 
 export async function downloadYTAudio(videoId: string): Promise<string> {
