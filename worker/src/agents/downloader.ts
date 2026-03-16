@@ -28,7 +28,7 @@ export const downloaderAgent = createAgentLoop(
   {
     name: 'downloader',
     inputStatus: 'pending',
-    processingStatus: 'processing',
+    processingStatus: 'downloading',
     outputStatus: 'downloaded',
     pollIntervalMs: 10_000,
     batchSize: 3,
