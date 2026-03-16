@@ -1,11 +1,14 @@
+import fs from 'fs';
 import { getSupabase } from '../shared/supabase';
 import { logActivity } from '../shared/activity-log';
-import { getTodaysHashtags, getIGAccessToken, searchHashtag, IGMedia } from '../lib/instagram';
+import { getTodaysHashtags, getIGAccessToken, searchHashtag, getVideoUrl, IGMedia } from '../lib/instagram';
+import { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts, uploadToStorage, cleanup } from '../lib/ffmpeg';
+import { uploadToYouTube } from '../lib/youtube';
 
-const SCOUT_INTERVAL_MS = 30 * 60 * 1000; // Every 30 minutes — search ALL hashtags
-const MAX_QUEUE_PER_RUN = 5; // Queue up to 5 most viral per run
-const MIN_ENGAGEMENT = 25_000;  // Primary: viral (25k+ engagement score)
-const MIN_ENGAGEMENT_FALLBACK = 5_000; // Fallback: decent traction (5k+)
+const SCOUT_INTERVAL_MS = 10 * 60 * 1000; // OVERDRIVE: every 10 minutes
+const MAX_QUEUE_PER_RUN = 10; // OVERDRIVE: queue up to 10 most viral per run
+const MIN_ENGAGEMENT = 10_000;  // Primary: viral (10k+ engagement score)
+const MIN_ENGAGEMENT_FALLBACK = 2_000; // Fallback: decent traction (2k+)
 const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000;
 
 let lastHeartbeat = 0;
@@ -65,7 +68,7 @@ async function scoutAllHashtags(): Promise<{ searched: number; queued: number }>
     .from('curated_posts')
     .select('ig_media_id')
     .in('ig_media_id', mediaIds);
-  const existingIds = new Set((existing || []).map(e => e.ig_media_id));
+  const existingIds = new Set((existing || []).map((e: any) => e.ig_media_id));
   const newVideos = viral.filter(v => !existingIds.has(v.id));
 
   if (!newVideos.length) {
@@ -108,15 +111,124 @@ async function scoutAllHashtags(): Promise<{ searched: number; queued: number }>
   return { searched: hashtags.length, queued: rows.length };
 }
 
+const MAX_RAW_SIZE_MB = 200;
+
+const ADJECTIVES = ['Insane', 'Epic', 'Incredible', 'Mind-Blowing', 'Unreal', 'Stunning', 'Next-Level', 'Jaw-Dropping', 'Wild', 'Legendary'];
+const HOOKS = ['Wait For It', 'Must Watch', 'INSANE', 'Watch Till The End', 'Next Level', 'Pure Fire', 'How Is This Real'];
+const EMOJIS = ['🔥', '✨', '😱', '💯', '⚡', '🤯', '👀', '💫'];
+const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+/**
+ * Push a single post through the entire pipeline inline: download → strip audio →
+ * vertical crop → scale → trim → generate metadata → upload to YouTube.
+ * This is the reel URL pipeline applied to scout-discovered videos.
+ */
+async function pushThroughPipeline(postId: string, permalink: string): Promise<string | null> {
+  const supabase = getSupabase();
+  const tempFiles: string[] = [];
+
+  try {
+    // Step 1: Download from Instagram
+    console.log(`[scout-pipeline] ${postId} downloading ${permalink}`);
+    await supabase.from('curated_posts').update({ status: 'downloading' }).eq('id', postId);
+
+    const { url, width, height } = await getVideoUrl(permalink);
+    const videoPath = await downloadFile(url, `scout_${postId}.mp4`);
+    tempFiles.push(videoPath);
+
+    const duration = await getVideoDuration(videoPath);
+    const rawSizeMB = fs.statSync(videoPath).size / 1024 / 1024;
+    console.log(`[scout-pipeline] ${postId} downloaded: ${width}x${height}, ${duration.toFixed(1)}s, ${rawSizeMB.toFixed(1)}MB`);
+
+    if (duration < 3 || duration > 300) {
+      throw new Error(`Duration ${duration.toFixed(1)}s out of range (3-300s)`);
+    }
+    if (rawSizeMB > MAX_RAW_SIZE_MB) {
+      throw new Error(`File too large (${rawSizeMB.toFixed(1)}MB > ${MAX_RAW_SIZE_MB}MB), would compress poorly`);
+    }
+
+    await supabase.from('curated_posts').update({ status: 'downloaded', video_duration: duration }).eq('id', postId);
+
+    // Step 2: Strip audio
+    console.log(`[scout-pipeline] ${postId} stripping audio`);
+    await supabase.from('curated_posts').update({ status: 'audio_search' }).eq('id', postId);
+    const silentPath = await stripAudio(videoPath);
+    tempFiles.push(silentPath);
+    await supabase.from('curated_posts').update({ status: 'audio_ready' }).eq('id', postId);
+
+    // Step 3: Edit (vertical crop + scale + trim)
+    console.log(`[scout-pipeline] ${postId} editing`);
+    await supabase.from('curated_posts').update({ status: 'editing' }).eq('id', postId);
+
+    const verticalPath = await ensureVertical(silentPath);
+    if (verticalPath !== silentPath) tempFiles.push(verticalPath);
+
+    const scaledPath = await ensureShortsResolution(verticalPath);
+    if (scaledPath !== verticalPath) tempFiles.push(scaledPath);
+
+    const trimmedPath = await trimToShorts(scaledPath, 59);
+    if (trimmedPath !== scaledPath) tempFiles.push(trimmedPath);
+
+    const finalDuration = await getVideoDuration(trimmedPath);
+    const finalStoragePath = `processed/${postId}_final.mp4`;
+    await uploadToStorage(trimmedPath, finalStoragePath);
+    await supabase.from('curated_posts').update({ status: 'edited', video_path: finalStoragePath, video_duration: finalDuration }).eq('id', postId);
+    console.log(`[scout-pipeline] ${postId} edited: ${finalDuration.toFixed(1)}s`);
+
+    // Step 4: Generate metadata
+    await supabase.from('curated_posts').update({ status: 'writing' }).eq('id', postId);
+    const title = `${pick(EMOJIS)} ${pick(ADJECTIVES)}! ${pick(HOOKS)}`;
+    const description = `This might be the most viral video you see today.\n\nOriginal: ${permalink}\n\n#shorts #viral #trending #fyp #mustwatch`;
+    const hashtags = ['shorts', 'viral', 'trending', 'fyp', 'mustwatch', 'flowarts', 'dance', 'edm', 'satisfying', 'nextlevel'];
+    await supabase.from('curated_posts').update({ status: 'metadata_ready', title, description, hashtags }).eq('id', postId);
+
+    // Step 5: Upload to YouTube
+    console.log(`[scout-pipeline] ${postId} uploading to YouTube: "${title}"`);
+    await supabase.from('curated_posts').update({ status: 'uploading' }).eq('id', postId);
+
+    const ytTitle = `${title} #Shorts`.slice(0, 100);
+    const hashtagStr = hashtags.map(h => `#${h}`).join(' ');
+    const fullDesc = `${description}\n\n${hashtagStr}\n\nOriginal: ${permalink}\n🌊 Discover more at gwdf.pro`;
+
+    const ytVideoId = await uploadToYouTube(trimmedPath, ytTitle, fullDesc, hashtags);
+    const ytUrl = `https://youtube.com/shorts/${ytVideoId}`;
+
+    await supabase.from('curated_posts').update({
+      status: 'posted',
+      youtube_video_id: ytVideoId,
+      error_message: null,
+    }).eq('id', postId);
+
+    console.log(`[scout-pipeline] ✓ ${postId} → ${ytUrl}`);
+    await logActivity('scout-pipeline', 'published', { post_id: postId, youtube_url: ytUrl, title });
+    return ytUrl;
+
+  } catch (err: any) {
+    console.error(`[scout-pipeline] ✗ ${postId}: ${err.message}`);
+    await supabase.from('curated_posts').update({
+      status: 'failed',
+      error_message: err.message,
+      failed_at_stage: 'scout-pipeline',
+    }).eq('id', postId);
+    await logActivity('scout-pipeline', 'error', { post_id: postId, error: err.message });
+    return null;
+  } finally {
+    for (const f of new Set(tempFiles)) {
+      try { fs.unlinkSync(f); } catch {}
+    }
+  }
+}
+
 // Legacy one-shot function (for /scout endpoint)
 export async function runScout(): Promise<{ discovered: number; queued: number }> {
   const result = await scoutAllHashtags();
   return { discovered: result.searched, queued: result.queued };
 }
 
-// Continuous scouting loop — all hashtags every 30 minutes
+// Continuous scouting loop — discovers viral reels and pushes them through
+// the full pipeline to YouTube immediately (reel URL → YouTube Short)
 export function startScout() {
-  console.log(`[scout] Continuous scout started — ALL hashtags every ${SCOUT_INTERVAL_MS / 60000} minutes, top ${MAX_QUEUE_PER_RUN} per run`);
+  console.log(`[scout] OVERDRIVE scout started — ALL hashtags every ${SCOUT_INTERVAL_MS / 60000} min, top ${MAX_QUEUE_PER_RUN}/run, inline pipeline to YouTube`);
 
   async function tick() {
     try {
@@ -127,9 +239,31 @@ export function startScout() {
           lastHeartbeat = now;
           await logActivity('scout', 'heartbeat', { status: 'scanning', searched: result.searched });
         }
-      } else {
-        lastHeartbeat = Date.now();
+        return;
       }
+
+      lastHeartbeat = Date.now();
+
+      // Push newly queued posts through the full pipeline immediately
+      const supabase = getSupabase();
+      const { data: pending } = await supabase
+        .from('curated_posts')
+        .select('id, ig_permalink')
+        .eq('status', 'pending')
+        .order('ig_like_count', { ascending: false })
+        .limit(MAX_QUEUE_PER_RUN);
+
+      if (!pending?.length) return;
+
+      console.log(`[scout] Pushing ${pending.length} videos through pipeline to YouTube...`);
+      let published = 0;
+      for (const post of pending) {
+        const ytUrl = await pushThroughPipeline(post.id, post.ig_permalink);
+        if (ytUrl) published++;
+      }
+      console.log(`[scout] Pipeline run complete: ${published}/${pending.length} published`);
+      await logActivity('scout', 'pipeline-run', { attempted: pending.length, published });
+
     } catch (err: any) {
       console.error(`[scout] Error:`, err.message);
     }
