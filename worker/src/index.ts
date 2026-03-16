@@ -761,7 +761,7 @@ app.post('/test-single', auth, async (req: any, res: any) => {
     // Step 1: Download video from Instagram
     log.push('[download] Fetching video from Instagram private API...');
     const { getVideoUrl } = await import('./lib/instagram');
-    const { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts } = await import('./lib/ffmpeg');
+    const { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts, uploadToStorage: uploadToStor } = await import('./lib/ffmpeg');
     const { uploadToYouTube } = await import('./lib/youtube');
 
     let videoUrl: string, width: number, height: number;
@@ -785,7 +785,9 @@ app.post('/test-single', auth, async (req: any, res: any) => {
       return res.json({ ok: false, error: `Duration ${duration.toFixed(1)}s out of 3-300s range`, post_id: post.id, log });
     }
 
-    await supabase.from('curated_posts').update({ status: 'downloaded', video_duration: duration }).eq('id', post.id);
+    const rawStorPath = `uploads/${post.id}.mp4`;
+    await uploadToStor(videoPath, rawStorPath);
+    await supabase.from('curated_posts').update({ status: 'downloaded', video_path: rawStorPath, video_duration: duration }).eq('id', post.id);
 
     // Step 2: Strip audio
     log.push('[audio] Stripping audio...');
@@ -797,7 +799,9 @@ app.post('/test-single', auth, async (req: any, res: any) => {
       await supabase.from('curated_posts').update({ status: 'failed', error_message: audioErr.message, failed_at_stage: 'audio_engineer' }).eq('id', post.id);
       return res.json({ ok: false, error: audioErr.message, post_id: post.id, failed_at: 'audio', log });
     }
-    await supabase.from('curated_posts').update({ status: 'audio_ready' }).eq('id', post.id);
+    const silStorPath = `processed/${post.id}_silent.mp4`;
+    await uploadToStor(silentPath, silStorPath);
+    await supabase.from('curated_posts').update({ status: 'audio_ready', video_path: silStorPath }).eq('id', post.id);
     log.push('[audio] OK');
 
     // Step 3: Edit (vertical crop, scale, trim)
@@ -813,7 +817,9 @@ app.post('/test-single', auth, async (req: any, res: any) => {
       return res.json({ ok: false, error: editErr.message, post_id: post.id, failed_at: 'editor', log });
     }
     const finalDuration = await getVideoDuration(editedPath);
-    await supabase.from('curated_posts').update({ status: 'edited', video_duration: finalDuration }).eq('id', post.id);
+    const finalStorPath = `processed/${post.id}_final.mp4`;
+    await uploadToStor(editedPath, finalStorPath);
+    await supabase.from('curated_posts').update({ status: 'edited', video_path: finalStorPath, video_duration: finalDuration }).eq('id', post.id);
     log.push(`[edit] OK: ${finalDuration.toFixed(1)}s`);
 
     // Step 4: Generate metadata
@@ -936,7 +942,7 @@ app.post('/burst', auth, async (req: any, res: any) => {
 
     // --- Phase 2: Pipeline each video end-to-end ---
     const { getVideoUrl } = await import('./lib/instagram');
-    const { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts, cleanup: cleanupFiles } = await import('./lib/ffmpeg');
+    const { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts, uploadToStorage, cleanup: cleanupFiles } = await import('./lib/ffmpeg');
     const { uploadToYouTube } = await import('./lib/youtube');
 
     const results: { post_id: string; ok: boolean; youtube_url?: string; error?: string }[] = [];
@@ -963,14 +969,19 @@ app.post('/burst', auth, async (req: any, res: any) => {
           throw new Error(`Duration ${duration.toFixed(1)}s out of range (3-300s)`);
         }
 
-        await supabase.from('curated_posts').update({ status: 'downloaded', video_duration: duration }).eq('id', post.id);
+        // Upload raw video to storage so agents can recover if burst crashes
+        const rawStoragePath = `uploads/${post.id}.mp4`;
+        await uploadToStorage(videoPath, rawStoragePath);
+        await supabase.from('curated_posts').update({ status: 'downloaded', video_path: rawStoragePath, video_duration: duration }).eq('id', post.id);
 
         // Step 2: Strip audio
         send({ phase: 'audio', video: i + 1, message: `Stripping audio...` });
         await supabase.from('curated_posts').update({ status: 'audio_search' }).eq('id', post.id);
         const silentPath = await stripAudio(videoPath);
         tempFiles.push(silentPath);
-        await supabase.from('curated_posts').update({ status: 'audio_ready' }).eq('id', post.id);
+        const silentStoragePath = `processed/${post.id}_silent.mp4`;
+        await uploadToStorage(silentPath, silentStoragePath);
+        await supabase.from('curated_posts').update({ status: 'audio_ready', video_path: silentStoragePath }).eq('id', post.id);
 
         // Step 3: Edit (vertical + scale + trim)
         send({ phase: 'edit', video: i + 1, message: `Editing: vertical, 1080x1920, trim...` });
@@ -987,7 +998,9 @@ app.post('/burst', auth, async (req: any, res: any) => {
 
         const finalDuration = await getVideoDuration(trimmedPath);
         send({ phase: 'edit', video: i + 1, message: `Edited: ${finalDuration.toFixed(1)}s, ready for upload` });
-        await supabase.from('curated_posts').update({ status: 'edited', video_path: trimmedPath, video_duration: finalDuration }).eq('id', post.id);
+        const finalStoragePath = `processed/${post.id}_final.mp4`;
+        await uploadToStorage(trimmedPath, finalStoragePath);
+        await supabase.from('curated_posts').update({ status: 'edited', video_path: finalStoragePath, video_duration: finalDuration }).eq('id', post.id);
 
         // Step 4: Generate metadata
         send({ phase: 'metadata', video: i + 1, message: `Generating title & description...` });

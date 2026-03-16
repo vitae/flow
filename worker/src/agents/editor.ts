@@ -20,7 +20,10 @@ async function handlePost(post: CuratedPost) {
       post.video_path = fresh.video_path;
       console.log(`[editor] Recovered video_path: ${post.video_path}`);
     } else {
-      throw new Error(`No video_path set (DB also returned null). Post ${post.id} may not have been processed by audio_engineer.`);
+      // Try the standard processed path as a fallback
+      const fallbackPath = `processed/${post.id}_silent.mp4`;
+      console.warn(`[editor] DB also returned null, trying fallback: ${fallbackPath}`);
+      post.video_path = fallbackPath;
     }
   }
 

@@ -16,6 +16,10 @@ export function ensureTmpDir() {
  * Returns the local file path.
  */
 export async function ensureLocalFile(storagePath: string): Promise<string> {
+  if (!storagePath || typeof storagePath !== 'string') {
+    throw new Error(`Invalid video_path: ${JSON.stringify(storagePath)}. Expected a storage path like "uploads/uuid.mp4".`);
+  }
+
   // Already a local path (from the downloader agent or burst mode)
   if (path.isAbsolute(storagePath) && fs.existsSync(storagePath)) {
     return storagePath;
