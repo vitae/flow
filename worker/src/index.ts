@@ -74,6 +74,31 @@ app.post('/scout', auth, async (_req, res) => {
   }
 });
 
+// Scout preview: discover viral reels and return their URLs + stats without queuing
+app.get('/scout-preview', auth, async (_req, res) => {
+  try {
+    const { discoverViralVideos, getTodaysHashtags } = await import('./lib/instagram');
+    const hashtags = getTodaysHashtags();
+    const videos = await discoverViralVideos();
+    const results = videos.map(v => ({
+      permalink: v.permalink,
+      likes: v.like_count,
+      comments: v.comments_count,
+      engagement: (v.like_count || 0) + (v.comments_count || 0) * 10,
+      caption: v.caption?.slice(0, 120) || '',
+      posted: v.timestamp,
+    }));
+    res.json({
+      ok: true,
+      hashtags_searched: hashtags,
+      total_found: results.length,
+      reels: results,
+    });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Manual trigger: run all agents once in sequence (backwards compat)
 app.post('/process', auth, async (_req, res) => {
   try {
