@@ -1,3 +1,4 @@
+import fs from 'fs';
 import express from 'express';
 import { runScout, startScout } from './agents/scout';
 import { downloaderAgent } from './agents/downloader';
@@ -778,7 +779,7 @@ app.post('/test-single', auth, async (req: any, res: any) => {
 
     const videoPath = await downloadFile(videoUrl, `test_${post.id}.mp4`);
     const duration = await getVideoDuration(videoPath);
-    const fs = await import('fs');
+    // fs imported at top level
     const rawSizeMB = fs.statSync(videoPath).size / 1024 / 1024;
     log.push(`[download] OK: ${width}x${height}, ${duration.toFixed(1)}s, ${rawSizeMB.toFixed(1)}MB`);
 
@@ -861,7 +862,7 @@ app.post('/test-single', auth, async (req: any, res: any) => {
     log.push(`[publish] SUCCESS! ${ytUrl}`);
 
     // Cleanup temp files (use Set to avoid double-deleting same path)
-    const fs = await import('fs');
+    // fs imported at top level
     const filesToClean = new Set([videoPath, silentPath, editedPath]);
     for (const f of filesToClean) {
       try { fs.unlinkSync(f); } catch {}
@@ -967,7 +968,7 @@ app.post('/burst', auth, async (req: any, res: any) => {
         tempFiles.push(videoPath);
 
         const duration = await getVideoDuration(videoPath);
-        const rawSizeMB = require('fs').statSync(videoPath).size / 1024 / 1024;
+        const rawSizeMB = fs.statSync(videoPath).size / 1024 / 1024;
         send({ phase: 'download', video: i + 1, message: `Downloaded: ${width}x${height}, ${duration.toFixed(1)}s, ${rawSizeMB.toFixed(1)}MB` });
 
         if (duration < 3 || duration > 300) {
@@ -1054,7 +1055,7 @@ app.post('/burst', auth, async (req: any, res: any) => {
       } finally {
         // Clean up temp files for this video
         for (const f of tempFiles) {
-          try { require('fs').unlinkSync(f); } catch {}
+          try { fs.unlinkSync(f); } catch {}
         }
       }
     }
