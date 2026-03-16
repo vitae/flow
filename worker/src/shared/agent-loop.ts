@@ -2,11 +2,14 @@ import { getSupabase } from './supabase';
 import { logActivity } from './activity-log';
 import { AgentConfig, CuratedPost } from './types';
 
+const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // Log heartbeat every 4 min when idle
+
 export function createAgentLoop(
   config: AgentConfig,
   processOne: (post: CuratedPost) => Promise<Partial<CuratedPost>>
 ) {
   const supabase = getSupabase();
+  let lastHeartbeat = 0;
 
   async function tick(): Promise<number> {
     const { data: posts } = await supabase
@@ -16,7 +19,15 @@ export function createAgentLoop(
       .order('ig_like_count', { ascending: false })
       .limit(config.batchSize);
 
-    if (!posts?.length) return 0;
+    if (!posts?.length) {
+      // Log periodic heartbeat so the dashboard knows we're alive
+      const now = Date.now();
+      if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
+        lastHeartbeat = now;
+        await logActivity(config.name, 'heartbeat', { status: 'polling', queue: config.inputStatus });
+      }
+      return 0;
+    }
 
     let processed = 0;
     for (const post of posts) {

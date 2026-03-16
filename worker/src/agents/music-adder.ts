@@ -4,6 +4,7 @@ import { getStoredCookies } from './cookie-refresher';
 
 const POLL_INTERVAL_MS = 30 * 1000;
 const MAX_RETRIES = 2; // Retry a failed video once before giving up
+const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000;
 
 const MUSIC_QUERIES = [
   'most popular', 'trending', 'viral',
@@ -291,6 +292,7 @@ async function addMusicToShort(videoId: string): Promise<string> {
 
 export function startMusicAdder() {
   const supabase = getSupabase();
+  let lastHeartbeat = 0;
 
   async function tick(): Promise<number> {
     // Find posts that need music added on YouTube
@@ -303,7 +305,15 @@ export function startMusicAdder() {
       .order('created_at', { ascending: true })
       .limit(1);
 
-    if (!posts?.length) return 0;
+    if (!posts?.length) {
+      const now = Date.now();
+      if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
+        lastHeartbeat = now;
+        const { logActivity } = await import('../shared/activity-log');
+        await logActivity('music_adder', 'heartbeat', { status: 'waiting' });
+      }
+      return 0;
+    }
 
     const post = posts[0];
 

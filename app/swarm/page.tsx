@@ -153,6 +153,9 @@ function activityToLogLines(act: Activity, color: string): { text: string; color
       lines.push({ text: `[${t}] REFRESHED`, color });
       if (act.details.cookies_count) lines.push({ text: `  cookies: ${String(act.details.cookies_count)}`, color, dim: true });
       break;
+    case 'heartbeat':
+      lines.push({ text: `[${t}] ALIVE — ${String(act.details.status || 'polling')}`, color, dim: true });
+      break;
     case 'error':
       lines.push({ text: `[${t}] ERROR`, color: '#FF0000' });
       if (act.details.error) lines.push({ text: `  ${String(act.details.error).slice(0, 60)}`, color: '#FF0000', dim: true });
@@ -166,6 +169,7 @@ function activityToLogLines(act: Activity, color: string): { text: string; color
 
 function getThinking(agentId: string, lastAct: Activity | undefined): { thinking: string; next: string } {
   if (!lastAct) return { thinking: 'Idle. Waiting for work...', next: 'Poll for new tasks' };
+  if (lastAct.action === 'heartbeat') return { thinking: 'Running. Polling for work...', next: `Status: ${String(lastAct.details.status || 'active')}` };
   if (lastAct.action === 'error') return { thinking: 'Last run failed. Will retry.', next: 'Retry after cooldown' };
 
   const map: Record<string, Record<string, { thinking: string; next: string }>> = {
@@ -988,6 +992,18 @@ export default function SwarmDashboard() {
               <Smartphone className="w-5 h-5" />
               iOS
             </a>
+            <button onClick={async () => { try { const r = await fetch('/api/swarm/retry-failed', { method: 'POST' }); const d = await r.json(); alert(`Retried ${d.retried || 0} failed posts`); fetchData(); } catch { alert('Worker unreachable'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(255,100,0,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,100,0,0.3)', color: '#FF6400', textShadow: '0 0 6px #FF640060' }}>
+              <RefreshCw className="w-5 h-5" />
+              RETRY
+            </button>
+            <button onClick={async () => { try { const r = await fetch('/api/swarm/diagnose'); const d = await r.json(); alert(JSON.stringify(d.checks || d, null, 2)); } catch { alert('Worker unreachable'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(255,0,255,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,0,255,0.3)', color: '#FF00FF', textShadow: '0 0 6px #FF00FF60' }}>
+              <RefreshCw className="w-5 h-5" />
+              DIAGNOSE
+            </button>
             <button onClick={fetchData}
               className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl text-flow-green transition-all hover:scale-105"
               style={{ background: 'rgba(0,255,0,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,0,0.2)' }}>
