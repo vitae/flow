@@ -35,6 +35,8 @@ async function getDailyUploadCount(): Promise<number> {
 /** Check if an error is transient and worth retrying */
 function isTransientError(err: any): boolean {
   const msg = (err.message || '').toLowerCase();
+  // Quota exceeded is NOT transient — it won't resolve within retry window
+  if (msg.includes('quota') || msg.includes('exceeded')) return false;
   return (
     msg.includes('timeout') ||
     msg.includes('econnreset') ||
@@ -43,8 +45,7 @@ function isTransientError(err: any): boolean {
     msg.includes('network') ||
     msg.includes('503') ||
     msg.includes('429') ||
-    msg.includes('rate limit') ||
-    msg.includes('quota')
+    msg.includes('rate limit')
   );
 }
 
