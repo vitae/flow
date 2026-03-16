@@ -25,7 +25,7 @@ async function handlePost(post: CuratedPost) {
   }
 
   // Ensure the video is available locally
-  const localPath = await ensureLocalFile(post.video_path);
+  const localPath = await ensureLocalFile(post.video_path!);
 
   // Validate minimum duration (iOS uploads skip downloader validation)
   const rawDuration = await getVideoDuration(localPath);
