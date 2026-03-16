@@ -8,6 +8,7 @@ import { copywriterAgent } from './agents/copywriter';
 import { startPublisher } from './agents/publisher';
 import { startMusicAdder } from './agents/music-adder';
 import { startCookieRefresher } from './agents/cookie-refresher';
+import { runFeedBot, startFeedBot } from './agents/feed-bot';
 import { getSupabase } from './shared/supabase';
 
 const app = express();
@@ -71,6 +72,17 @@ app.post('/scout', auth, async (_req, res) => {
     res.json(result);
   } catch (err: any) {
     console.error('[scout] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trigger feed-bot discovery (manual or cron)
+app.post('/feed-bot', auth, async (_req, res) => {
+  try {
+    const result = await runFeedBot();
+    res.json(result);
+  } catch (err: any) {
+    console.error('[feed-bot] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -162,7 +174,7 @@ app.get('/status', auth, async (_req, res) => {
 // Health check
 app.get('/health', (_req, res) => res.json({
   ok: true,
-  agents: ['scout', 'downloader', 'audio_engineer', 'editor', 'copywriter', 'publisher', 'music_adder', 'cookie_refresher'],
+  agents: ['scout', 'feed_bot', 'downloader', 'audio_engineer', 'editor', 'copywriter', 'publisher', 'music_adder', 'cookie_refresher'],
   env: {
     supabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -1132,6 +1144,7 @@ app.listen(PORT, async () => {
   startPublisher();
   startCookieRefresher(); // Refresh YT Studio cookies every 6h before they expire
   startMusicAdder();
+  startFeedBot(); // Discover trending/viral reels from multiple sources every 30 min
 
   console.log('All agents running.');
 });
