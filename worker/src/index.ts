@@ -572,6 +572,227 @@ app.post('/push-pipeline', auth, async (_req: any, res: any) => {
   }
 });
 
+// Burst mode: aggressively scout all hashtags, pick top N, and push each through
+// the ENTIRE pipeline in-process. Files stay in /tmp — no storage round-trips.
+app.post('/burst', auth, async (req: any, res: any) => {
+  const count = Math.min(req.body?.count || 5, 10);
+  const supabase = getSupabase();
+  const log: string[] = [];
+
+  // Stream progress via newline-delimited JSON
+  res.setHeader('Content-Type', 'application/x-ndjson');
+  res.setHeader('Transfer-Encoding', 'chunked');
+  const send = (obj: any) => { try { res.write(JSON.stringify(obj) + '\n'); } catch {} };
+
+  try {
+    // --- Phase 1: Aggressive discovery across ALL hashtags ---
+    send({ phase: 'scout', message: `Scouting all hashtags for top ${count} videos...` });
+    const { discoverViralVideos } = await import('./lib/instagram');
+
+    const allVideos = await discoverViralVideos();
+    send({ phase: 'scout', message: `Found ${allVideos.length} viral videos across all hashtags` });
+
+    if (!allVideos.length) {
+      send({ phase: 'scout', ok: false, message: 'No viral videos found. Check Instagram connection.' });
+      return res.end();
+    }
+
+    // Deduplicate against existing posts
+    const mediaIds = allVideos.map(v => v.id);
+    const { data: existing } = await supabase
+      .from('curated_posts')
+      .select('ig_media_id')
+      .in('ig_media_id', mediaIds);
+    const existingIds = new Set((existing || []).map(e => e.ig_media_id));
+    const fresh = allVideos.filter(v => !existingIds.has(v.id));
+
+    send({ phase: 'scout', message: `${fresh.length} new videos (${existingIds.size} already queued)` });
+
+    if (!fresh.length) {
+      send({ phase: 'scout', ok: false, message: 'All discovered videos are already in the pipeline.' });
+      return res.end();
+    }
+
+    // Pick top N by likes
+    const topN = fresh.slice(0, count);
+    send({ phase: 'scout', message: `Selected top ${topN.length}: ${topN.map(v => `${(v.like_count||0).toLocaleString()} likes`).join(', ')}` });
+
+    // Insert all into DB
+    const rows = topN.map(v => {
+      const mentionMatch = v.caption?.match(/@(\w+)/);
+      return {
+        ig_media_id: v.id,
+        ig_username: mentionMatch?.[1] || 'creator',
+        ig_permalink: v.permalink,
+        ig_like_count: v.like_count || 0,
+        status: 'pending',
+        hashtags: [],
+      };
+    });
+
+    const { data: inserted } = await supabase
+      .from('curated_posts')
+      .insert(rows)
+      .select('*');
+
+    if (!inserted?.length) {
+      send({ phase: 'scout', ok: false, message: 'Failed to insert posts into DB' });
+      return res.end();
+    }
+
+    send({ phase: 'scout', ok: true, message: `Queued ${inserted.length} posts` });
+
+    // --- Phase 2: Pipeline each video end-to-end ---
+    const { getVideoUrl } = await import('./lib/instagram');
+    const { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts, cleanup: cleanupFiles } = await import('./lib/ffmpeg');
+    const { uploadToYouTube } = await import('./lib/youtube');
+
+    const results: { post_id: string; ok: boolean; youtube_url?: string; error?: string }[] = [];
+
+    for (let i = 0; i < inserted.length; i++) {
+      const post = inserted[i];
+      send({ phase: 'pipeline', video: i + 1, total: inserted.length, post_id: post.id, message: `Processing video ${i + 1}/${inserted.length}...` });
+
+      const tempFiles: string[] = [];
+
+      try {
+        // Step 1: Download
+        send({ phase: 'download', video: i + 1, message: `Downloading from Instagram...` });
+        await supabase.from('curated_posts').update({ status: 'downloading' }).eq('id', post.id);
+
+        const { url, width, height } = await getVideoUrl(post.ig_permalink);
+        const videoPath = await downloadFile(url, `burst_${post.id}.mp4`);
+        tempFiles.push(videoPath);
+
+        const duration = await getVideoDuration(videoPath);
+        send({ phase: 'download', video: i + 1, message: `Downloaded: ${width}x${height}, ${duration.toFixed(1)}s` });
+
+        if (duration < 3 || duration > 300) {
+          throw new Error(`Duration ${duration.toFixed(1)}s out of range (3-300s)`);
+        }
+
+        await supabase.from('curated_posts').update({ status: 'downloaded', video_duration: duration }).eq('id', post.id);
+
+        // Step 2: Strip audio
+        send({ phase: 'audio', video: i + 1, message: `Stripping audio...` });
+        await supabase.from('curated_posts').update({ status: 'audio_search' }).eq('id', post.id);
+        const silentPath = await stripAudio(videoPath);
+        tempFiles.push(silentPath);
+        await supabase.from('curated_posts').update({ status: 'audio_ready' }).eq('id', post.id);
+
+        // Step 3: Edit (vertical + scale + trim)
+        send({ phase: 'edit', video: i + 1, message: `Editing: vertical, 1080x1920, trim...` });
+        await supabase.from('curated_posts').update({ status: 'editing' }).eq('id', post.id);
+
+        const verticalPath = await ensureVertical(silentPath);
+        if (verticalPath !== silentPath) tempFiles.push(verticalPath);
+
+        const scaledPath = await ensureShortsResolution(verticalPath);
+        if (scaledPath !== verticalPath) tempFiles.push(scaledPath);
+
+        const trimmedPath = await trimToShorts(scaledPath, 59);
+        if (trimmedPath !== scaledPath) tempFiles.push(trimmedPath);
+
+        const finalDuration = await getVideoDuration(trimmedPath);
+        send({ phase: 'edit', video: i + 1, message: `Edited: ${finalDuration.toFixed(1)}s, ready for upload` });
+        await supabase.from('curated_posts').update({ status: 'edited', video_path: trimmedPath, video_duration: finalDuration }).eq('id', post.id);
+
+        // Step 4: Generate metadata
+        send({ phase: 'metadata', video: i + 1, message: `Generating title & description...` });
+        await supabase.from('curated_posts').update({ status: 'writing' }).eq('id', post.id);
+
+        const ADJECTIVES = ['Insane', 'Epic', 'Incredible', 'Mind-Blowing', 'Unreal', 'Stunning', 'Next-Level', 'Jaw-Dropping', 'Wild', 'Legendary'];
+        const HOOKS = ['Wait For It', 'Must Watch', 'INSANE', 'Watch Till The End', 'Next Level', 'Pure Fire', 'How Is This Real'];
+        const EMOJIS = ['🔥', '✨', '😱', '💯', '⚡', '🤯', '👀', '💫'];
+        const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+        const title = `${pick(EMOJIS)} ${pick(ADJECTIVES)}! ${pick(HOOKS)}`;
+        const description = `This might be the most viral video you see today.\n\nOriginal: ${post.ig_permalink}\n\n#shorts #viral #trending #fyp #mustwatch`;
+        const hashtags = ['shorts', 'viral', 'trending', 'fyp', 'mustwatch', 'flowarts', 'dance', 'edm', 'satisfying', 'nextlevel'];
+
+        await supabase.from('curated_posts').update({ status: 'metadata_ready', title, description, hashtags }).eq('id', post.id);
+        send({ phase: 'metadata', video: i + 1, message: `Title: "${title}"` });
+
+        // Step 5: Upload to YouTube
+        send({ phase: 'publish', video: i + 1, message: `Uploading to YouTube...` });
+        await supabase.from('curated_posts').update({ status: 'uploading' }).eq('id', post.id);
+
+        const ytTitle = `${title} #Shorts`.slice(0, 100);
+        const hashtagStr = hashtags.map(h => `#${h}`).join(' ');
+        const fullDesc = `${description}\n\n${hashtagStr}\n\nOriginal: ${post.ig_permalink}\n🌊 Discover more at gwdf.pro`;
+
+        const ytVideoId = await uploadToYouTube(trimmedPath, ytTitle, fullDesc, hashtags);
+        const ytUrl = `https://youtube.com/shorts/${ytVideoId}`;
+
+        await supabase.from('curated_posts').update({
+          status: 'posted',
+          youtube_video_id: ytVideoId,
+          error_message: null,
+        }).eq('id', post.id);
+
+        send({ phase: 'publish', video: i + 1, ok: true, message: `SUCCESS! ${ytUrl}`, youtube_url: ytUrl });
+        results.push({ post_id: post.id, ok: true, youtube_url: ytUrl });
+
+      } catch (err: any) {
+        send({ phase: 'error', video: i + 1, ok: false, message: `FAILED: ${err.message}` });
+        await supabase.from('curated_posts').update({
+          status: 'failed',
+          error_message: err.message,
+          failed_at_stage: 'burst',
+        }).eq('id', post.id);
+        results.push({ post_id: post.id, ok: false, error: err.message });
+      } finally {
+        // Clean up temp files for this video
+        for (const f of tempFiles) {
+          try { require('fs').unlinkSync(f); } catch {}
+        }
+      }
+    }
+
+    // --- Summary ---
+    const succeeded = results.filter(r => r.ok).length;
+    send({
+      phase: 'done',
+      ok: succeeded > 0,
+      summary: `${succeeded}/${results.length} videos published to YouTube`,
+      results,
+    });
+
+  } catch (err: any) {
+    send({ phase: 'error', ok: false, message: `Burst failed: ${err.message}` });
+  }
+
+  res.end();
+});
+
+// Store YouTube Studio cookies directly (avoids needing Playwright to seed)
+app.post('/store-cookies', auth, async (req: any, res: any) => {
+  try {
+    const { cookies } = req.body;
+    if (!cookies?.length) {
+      return res.status(400).json({ error: 'No cookies provided. Send { cookies: [...] }' });
+    }
+
+    const supabase = getSupabase();
+    const stored = {
+      cookies,
+      refreshed_at: new Date().toISOString(),
+      authenticated: true,
+    };
+
+    await supabase.from('kv_store').upsert({
+      key: 'youtube_studio_cookies',
+      value: JSON.stringify(stored),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' });
+
+    console.log(`[store-cookies] Stored ${cookies.length} cookies in kv_store`);
+    res.json({ ok: true, count: cookies.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, async () => {
   console.log(`Flow Agent Swarm v3 listening on port ${PORT}`);
@@ -579,6 +800,17 @@ app.listen(PORT, async () => {
   // Recover any posts stuck in transitional statuses from a previous crash
   console.log('[recovery] Checking for stuck posts...');
   await recoverStuckPosts();
+
+  // Ensure the videos storage bucket exists
+  try {
+    const { data: buckets } = await getSupabase().storage.listBuckets();
+    if (!buckets?.find((b: any) => b.name === 'videos')) {
+      await getSupabase().storage.createBucket('videos', { public: false });
+      console.log('[startup] Created "videos" storage bucket');
+    }
+  } catch (err: any) {
+    console.error('[startup] Storage bucket check failed:', err.message);
+  }
 
   console.log('Starting all agents...');
 
