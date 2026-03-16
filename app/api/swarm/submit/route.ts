@@ -55,19 +55,28 @@ export async function POST(req: NextRequest) {
 
     if (mode === 'sign') {
       // Generate a signed upload URL so the client can upload directly to Supabase Storage
-      const { filename, contentType } = body;
-      if (!filename || !contentType) {
-        return NextResponse.json({ error: 'filename and contentType required' }, { status: 400 });
+      const { filename } = body;
+      if (!filename) {
+        return NextResponse.json({ error: 'filename required' }, { status: 400 });
       }
 
-      // Validate video content type (iOS sends MOV as video/quicktime)
-      const allowedTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/mov'];
-      if (!allowedTypes.includes(contentType) && !contentType.startsWith('video/')) {
-        return NextResponse.json({ error: `Unsupported content type: ${contentType}. Must be a video file.` }, { status: 400 });
+      // Auto-detect content type from filename extension (iOS Shortcuts don't reliably detect MIME types)
+      const ext = (filename.split('.').pop() || 'mp4').toLowerCase();
+      const MIME_MAP: Record<string, string> = {
+        mp4: 'video/mp4',
+        mov: 'video/quicktime',
+        webm: 'video/webm',
+        avi: 'video/x-msvideo',
+        m4v: 'video/x-m4v',
+      };
+      const contentType = body.contentType || MIME_MAP[ext] || 'video/mp4';
+
+      // Validate it's a video type
+      if (!contentType.startsWith('video/')) {
+        return NextResponse.json({ error: `Unsupported file type: .${ext}. Must be a video file (mp4, mov, webm, avi).` }, { status: 400 });
       }
 
       const id = crypto.randomUUID();
-      const ext = filename.split('.').pop() || 'mp4';
       const storagePath = `uploads/${id}.${ext}`;
 
       const { data, error } = await supabase.storage
@@ -84,6 +93,7 @@ export async function POST(req: NextRequest) {
         uploadUrl: data.signedUrl,
         token: data.token,
         storagePath,
+        contentType,
       });
     }
 

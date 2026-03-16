@@ -120,17 +120,23 @@ export default function ShortcutSetupPage() {
 
                 <div className="border-b border-white/10 pb-3">
                   <div className="text-cyan-400 font-bold mb-1">2. Get Name of Shortcut Input</div>
-                  <div className="text-white/50">This gives us the filename</div>
+                  <div className="text-white/50">This gives us the filename (e.g. <code className="px-1 py-0.5 bg-white/10 rounded">IMG_1234.MOV</code>)</div>
+                  <div className="mt-1">Set variable: <code className="px-1.5 py-0.5 bg-white/10 rounded">fileName</code> = <em>Name of Shortcut Input</em></div>
                 </div>
 
                 <div className="border-b border-white/10 pb-3">
-                  <div className="text-cyan-400 font-bold mb-1">3. Set Variable</div>
-                  <div>Name: <code className="px-1.5 py-0.5 bg-white/10 rounded">fileName</code></div>
-                  <div>Value: <em>Name of Shortcut Input</em></div>
+                  <div className="text-cyan-400 font-bold mb-1">3. Get Contents of URL (Warm-up)</div>
+                  <div className="space-y-1">
+                    <div>URL: <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">{baseUrl}/api/swarm/submit</code></div>
+                    <div>Method: <strong>GET</strong></div>
+                  </div>
+                  <div className="text-white/50 text-xs mt-1">
+                    Wakes up the server to avoid cold-start timeouts on the next calls.
+                  </div>
                 </div>
 
                 <div className="border-b border-white/10 pb-3">
-                  <div className="text-cyan-400 font-bold mb-1">4. Get Contents of URL (Step 1: Sign)</div>
+                  <div className="text-cyan-400 font-bold mb-1">4. Get Contents of URL (Sign)</div>
                   <div className="space-y-1">
                     <div>URL: <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">{baseUrl}/api/swarm/submit</code></div>
                     <div>Method: <strong>POST</strong></div>
@@ -143,65 +149,79 @@ export default function ShortcutSetupPage() {
                     <div className="bg-black/40 rounded p-2 font-mono text-xs">
                       {`{`}<br/>
                       &nbsp;&nbsp;{`"mode": "sign",`}<br/>
-                      &nbsp;&nbsp;{`"filename": fileName,`}<br/>
-                      &nbsp;&nbsp;{`"contentType": "video/quicktime"`}<br/>
+                      &nbsp;&nbsp;{`"filename": fileName`}<br/>
                       {`}`}
                     </div>
                     <div className="text-white/50 text-xs mt-1">
-                      Use <code className="px-1 py-0.5 bg-white/10 rounded">video/quicktime</code> for iPhone videos (.MOV).
-                      Use <code className="px-1 py-0.5 bg-white/10 rounded">video/mp4</code> if sharing downloaded .mp4 files.
+                      The server auto-detects the content type from the filename (.MOV, .MP4, etc.) — no need to specify it.
                     </div>
                   </div>
                 </div>
 
                 <div className="border-b border-white/10 pb-3">
-                  <div className="text-cyan-400 font-bold mb-1">5. Get Dictionary Values</div>
-                  <div>Get <code className="px-1.5 py-0.5 bg-white/10 rounded">uploadUrl</code> from step 4 → set as variable <code className="px-1.5 py-0.5 bg-white/10 rounded">uploadUrl</code></div>
-                  <div>Get <code className="px-1.5 py-0.5 bg-white/10 rounded">id</code> from step 4 → set as variable <code className="px-1.5 py-0.5 bg-white/10 rounded">fileId</code></div>
-                  <div>Get <code className="px-1.5 py-0.5 bg-white/10 rounded">storagePath</code> from step 4 → set as variable <code className="px-1.5 py-0.5 bg-white/10 rounded">storagePath</code></div>
-                  <div>Get <code className="px-1.5 py-0.5 bg-white/10 rounded">token</code> from step 4 → set as variable <code className="px-1.5 py-0.5 bg-white/10 rounded">uploadToken</code></div>
-                </div>
-
-                <div className="border-b border-white/10 pb-3">
-                  <div className="text-cyan-400 font-bold mb-1">6. Get Contents of URL (Step 2: Upload to Supabase)</div>
-                  <div className="space-y-1">
-                    <div>URL: <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">uploadUrl</code> (variable from step 5)</div>
-                    <div>Method: <strong>PUT</strong></div>
-                    <div>Headers:</div>
-                    <div className="pl-4 space-y-0.5">
-                      <div><code className="text-yellow-300">Content-Type</code>: <code>video/mp4</code></div>
+                  <div className="text-cyan-400 font-bold mb-1">5. If <em>Dictionary Value</em> for <code className="px-1 py-0.5 bg-white/10 rounded">uploadUrl</code> has any value</div>
+                  <div className="text-white/50 text-xs">This catches sign errors — if the server returned an error, <code className="px-1 py-0.5 bg-white/10 rounded">uploadUrl</code> won&apos;t exist.</div>
+                  <div className="mt-2 pl-4 border-l-2 border-cyan-500/30 space-y-3">
+                    <div>
+                      <div className="text-white/60 font-medium mb-1">Get Dictionary Values from step 4:</div>
+                      <div>Get <code className="px-1.5 py-0.5 bg-white/10 rounded">uploadUrl</code> → set as variable <code className="px-1.5 py-0.5 bg-white/10 rounded">uploadUrl</code></div>
+                      <div>Get <code className="px-1.5 py-0.5 bg-white/10 rounded">id</code> → set as variable <code className="px-1.5 py-0.5 bg-white/10 rounded">fileId</code></div>
+                      <div>Get <code className="px-1.5 py-0.5 bg-white/10 rounded">storagePath</code> → set as variable <code className="px-1.5 py-0.5 bg-white/10 rounded">storagePath</code></div>
+                      <div>Get <code className="px-1.5 py-0.5 bg-white/10 rounded">contentType</code> → set as variable <code className="px-1.5 py-0.5 bg-white/10 rounded">contentType</code></div>
                     </div>
-                    <div>Request Body: <strong>File</strong> → <em>Shortcut Input</em></div>
+
+                    <div className="border-t border-white/10 pt-3">
+                      <div className="text-cyan-400 font-bold mb-1">6. Get Contents of URL (Upload to Supabase)</div>
+                      <div className="space-y-1">
+                        <div>URL: <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">uploadUrl</code> (variable)</div>
+                        <div>Method: <strong>PUT</strong></div>
+                        <div>Headers:</div>
+                        <div className="pl-4 space-y-0.5">
+                          <div><code className="text-yellow-300">Content-Type</code>: <code>contentType</code> (variable from step 5)</div>
+                        </div>
+                        <div>Request Body: <strong>File</strong> → <em>Shortcut Input</em></div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-white/10 pt-3">
+                      <div className="text-cyan-400 font-bold mb-1">7. Get Contents of URL (Register)</div>
+                      <div className="space-y-1">
+                        <div>URL: <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">{baseUrl}/api/swarm/submit</code></div>
+                        <div>Method: <strong>POST</strong></div>
+                        <div>Headers:</div>
+                        <div className="pl-4 space-y-0.5">
+                          <div><code className="text-yellow-300">Content-Type</code>: <code>application/json</code></div>
+                          <div><code className="text-yellow-300">Authorization</code>: <code>Bearer YOUR_API_KEY</code></div>
+                        </div>
+                        <div>Request Body (JSON):</div>
+                        <div className="bg-black/40 rounded p-2 font-mono text-xs">
+                          {`{`}<br/>
+                          &nbsp;&nbsp;{`"mode": "register",`}<br/>
+                          &nbsp;&nbsp;{`"id": fileId,`}<br/>
+                          &nbsp;&nbsp;{`"storagePath": storagePath,`}<br/>
+                          &nbsp;&nbsp;{`"filename": fileName`}<br/>
+                          {`}`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-white/10 pt-3">
+                      <div className="text-cyan-400 font-bold mb-1">8. Show Notification</div>
+                      <div>Title: <strong>Flow AI</strong></div>
+                      <div>Body: <strong>Video uploaded to pipeline!</strong></div>
+                    </div>
+                  </div>
+                  <div className="mt-3 pl-4 border-l-2 border-red-500/30">
+                    <div className="text-red-400 font-bold mb-1">Otherwise:</div>
+                    <div className="text-cyan-400 font-bold mb-1">Show Notification</div>
+                    <div>Title: <strong>Flow AI</strong></div>
+                    <div>Body: <strong>Upload failed — check your API key and try again.</strong></div>
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-cyan-400 font-bold mb-1">7. Get Contents of URL (Step 3: Register)</div>
-                  <div className="space-y-1">
-                    <div>URL: <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">{baseUrl}/api/swarm/submit</code></div>
-                    <div>Method: <strong>POST</strong></div>
-                    <div>Headers:</div>
-                    <div className="pl-4 space-y-0.5">
-                      <div><code className="text-yellow-300">Content-Type</code>: <code>application/json</code></div>
-                      <div><code className="text-yellow-300">Authorization</code>: <code>Bearer YOUR_API_KEY</code></div>
-                    </div>
-                    <div>Request Body (JSON):</div>
-                    <div className="bg-black/40 rounded p-2 font-mono text-xs">
-                      {`{`}<br/>
-                      &nbsp;&nbsp;{`"mode": "register",`}<br/>
-                      &nbsp;&nbsp;{`"id": fileId,`}<br/>
-                      &nbsp;&nbsp;{`"storagePath": storagePath,`}<br/>
-                      &nbsp;&nbsp;{`"filename": fileName`}<br/>
-                      {`}`}
-                    </div>
-                  </div>
+                  <div className="text-cyan-400 font-bold mb-1">End If</div>
                 </div>
-              </div>
-
-              <div className="bg-black/60 rounded-lg p-4">
-                <div className="text-cyan-400 font-bold mb-2">8. Show Notification</div>
-                <div className="text-sm">Title: <strong>Flow AI</strong></div>
-                <div className="text-sm">Body: <strong>Video uploaded to pipeline!</strong></div>
               </div>
             </div>
           </Step>
@@ -261,8 +281,8 @@ export default function ShortcutSetupPage() {
             <div className="flex items-start gap-3">
               <span className="text-white/40 shrink-0 w-24">Sign Body</span>
               <div className="flex items-center gap-2 flex-1">
-                <code className="px-2 py-1 bg-white/10 rounded text-xs">{`{"mode":"sign","filename":"video.mov","contentType":"video/quicktime"}`}</code>
-                <CopyButton text='{"mode":"sign","filename":"video.mov","contentType":"video/quicktime"}' />
+                <code className="px-2 py-1 bg-white/10 rounded text-xs">{`{"mode":"sign","filename":"video.mov"}`}</code>
+                <CopyButton text='{"mode":"sign","filename":"video.mov"}' />
               </div>
             </div>
             <div className="flex items-start gap-3">
