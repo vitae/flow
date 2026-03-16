@@ -147,13 +147,24 @@ function actionUrlPostJson(url: string, headers: string[], jsonFields: string[])
     </dict>`;
 }
 
-function actionUrlPutFile(urlVar: string, contentTypeVar: string, fileVar: string): string {
+/** Convert a variable's text value to a URL type (required before Get Contents of URL) */
+function actionMakeUrl(varName: string): string {
+  return `<dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.url</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFURLActionURL</key>${v(varName)}
+      </dict>
+    </dict>`;
+}
+
+function actionUrlPutFile(contentTypeVar: string, fileVar: string): string {
   return `<dict>
       <key>WFWorkflowActionIdentifier</key>
       <string>is.workflow.actions.downloadurl</string>
       <key>WFWorkflowActionParameters</key>
       <dict>
-        <key>WFURL</key>${att(urlVar)}
         <key>WFHTTPMethod</key><string>PUT</string>
         <key>WFHTTPHeaders</key>${dictValue([
           field('Content-Type', att(contentTypeVar)),
@@ -227,7 +238,8 @@ function buildShortcut(baseUrl: string): string {
 
     // Upload file to Supabase
     actionComment('Upload video to storage'),
-    actionUrlPutFile('uploadUrl', 'contentType', 'videoFile'),
+    actionMakeUrl('uploadUrl'),
+    actionUrlPutFile('contentType', 'videoFile'),
 
     // Register in pipeline
     actionComment('Register in the agent pipeline'),
