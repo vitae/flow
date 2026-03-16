@@ -177,7 +177,7 @@ app.get('/diagnose', auth, async (_req, res) => {
     results.pipeline = { ok: false, detail: err.message };
   }
 
-  // Check YouTube connection
+  // Check YouTube connection (actually test the OAuth token)
   try {
     const { data: ytConn } = await supabase
       .from('social_connections')
@@ -187,39 +187,144 @@ app.get('/diagnose', auth, async (_req, res) => {
       .limit(1)
       .single();
     if (!ytConn) {
-      results.youtube = { ok: false, detail: 'No active YouTube connection in social_connections' };
+      results.youtube_db = { ok: false, detail: 'No active YouTube connection in social_connections' };
     } else if (!ytConn.refresh_token) {
-      results.youtube = { ok: false, detail: 'YouTube connection exists but missing refresh_token' };
+      results.youtube_db = { ok: false, detail: 'YouTube connection exists but missing refresh_token' };
     } else {
       const expired = ytConn.token_expires_at && new Date(ytConn.token_expires_at).getTime() < Date.now();
-      results.youtube = { ok: true, detail: `Connected. Token ${expired ? 'expired (will auto-refresh)' : 'valid'}.` };
+      results.youtube_db = { ok: true, detail: `Refresh token present. Access token ${expired ? 'expired (will auto-refresh on use)' : 'valid'}.` };
+
+      // Actually test the YouTube API
+      if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+        try {
+          const { google } = await import('googleapis');
+          const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+          oauth2Client.setCredentials({ access_token: ytConn.access_token, refresh_token: ytConn.refresh_token });
+
+          // Refresh if expired
+          if (expired) {
+            const { credentials } = await oauth2Client.refreshAccessToken();
+            if (credentials.access_token && credentials.access_token !== ytConn.access_token) {
+              await supabase.from('social_connections').update({
+                access_token: credentials.access_token,
+                token_expires_at: credentials.expiry_date ? new Date(credentials.expiry_date).toISOString() : null,
+              }).eq('id', ytConn.id);
+            }
+          }
+
+          const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+          const channelRes = await youtube.channels.list({ part: ['snippet'], mine: true });
+          const channel = channelRes.data.items?.[0];
+          if (channel) {
+            results.youtube_api = { ok: true, detail: `YouTube API working! Channel: "${channel.snippet?.title}" (${channel.id})` };
+          } else {
+            results.youtube_api = { ok: false, detail: 'YouTube API returned no channels for this account' };
+          }
+        } catch (ytErr: any) {
+          const msg = ytErr.message || String(ytErr);
+          if (msg.includes('invalid_grant')) {
+            results.youtube_api = { ok: false, detail: 'Refresh token revoked/invalid. Re-authenticate YouTube in dashboard Settings.' };
+          } else {
+            results.youtube_api = { ok: false, detail: `YouTube API test failed: ${msg.slice(0, 200)}` };
+          }
+        }
+      }
     }
   } catch (err: any) {
-    results.youtube = { ok: false, detail: err.message };
+    results.youtube_db = { ok: false, detail: err.message };
   }
 
-  // Check Instagram connection
+  // Check Instagram Graph API connection (actually test the token)
   try {
     const { data: igConn } = await supabase
       .from('social_connections')
-      .select('id, access_token')
+      .select('id, access_token, platform_user_id')
       .eq('platform', 'instagram')
       .eq('is_active', true)
       .limit(1)
       .single();
-    results.instagram = igConn
-      ? { ok: true, detail: 'Connected.' }
-      : { ok: false, detail: 'No active Instagram connection in social_connections' };
+    if (!igConn) {
+      results.instagram_db = { ok: false, detail: 'No active Instagram connection in social_connections table. Go to dashboard Settings to connect Instagram.' };
+    } else if (!igConn.access_token) {
+      results.instagram_db = { ok: false, detail: 'Instagram row exists but access_token is empty.' };
+    } else if (!igConn.platform_user_id) {
+      results.instagram_db = { ok: false, detail: 'Instagram row exists but platform_user_id (IG User ID) is missing.' };
+    } else {
+      results.instagram_db = { ok: true, detail: `Token present. IG User ID: ${igConn.platform_user_id}` };
+
+      // Actually test the Graph API with a hashtag search
+      if (process.env.META_APP_SECRET) {
+        try {
+          const crypto = await import('crypto');
+          const proof = crypto.createHmac('sha256', process.env.META_APP_SECRET).update(igConn.access_token).digest('hex');
+          const testRes = await fetch(
+            `https://graph.facebook.com/v21.0/ig_hashtag_search?q=test&user_id=${igConn.platform_user_id}&access_token=${igConn.access_token}&appsecret_proof=${proof}`
+          );
+          const testData = await testRes.json();
+          if (testData.error) {
+            results.instagram_api = { ok: false, detail: `Graph API error: ${testData.error.message} (code ${testData.error.code}, subcode ${testData.error.error_subcode || 'none'})` };
+          } else if (testData.data?.[0]?.id) {
+            results.instagram_api = { ok: true, detail: `Graph API working! Hashtag search returned ID ${testData.data[0].id}` };
+          } else {
+            results.instagram_api = { ok: false, detail: `Graph API returned unexpected response: ${JSON.stringify(testData).slice(0, 200)}` };
+          }
+        } catch (apiErr: any) {
+          results.instagram_api = { ok: false, detail: `Graph API request failed: ${apiErr.message}` };
+        }
+      } else {
+        results.instagram_api = { ok: false, detail: 'META_APP_SECRET not set — cannot generate appsecret_proof for Graph API calls' };
+      }
+    }
   } catch (err: any) {
-    results.instagram = { ok: false, detail: err.message };
+    results.instagram_db = { ok: false, detail: err.message };
   }
 
-  // Check env vars
-  const required = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
-  const missing = required.filter(k => !process.env[k]);
-  results.env_vars = missing.length
-    ? { ok: false, detail: `Missing: ${missing.join(', ')}` }
-    : { ok: true, detail: 'All required env vars set.' };
+  // Check Instagram Private API (session-based, for downloading videos)
+  if (process.env.INSTAGRAM_SESSION_ID) {
+    try {
+      // Test with a known public post (Instagram's own account)
+      const testRes = await fetch('https://i.instagram.com/api/v1/users/web_profile_info/?username=instagram', {
+        headers: {
+          'Cookie': `sessionid=${decodeURIComponent(process.env.INSTAGRAM_SESSION_ID)}`,
+          'User-Agent': 'Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)',
+          'X-IG-App-ID': '936619743392459',
+        },
+      });
+      if (testRes.ok) {
+        results.instagram_session = { ok: true, detail: 'Private API session is valid (can download videos)' };
+      } else {
+        results.instagram_session = { ok: false, detail: `Private API returned ${testRes.status} — session ID may be expired. Re-grab from browser.` };
+      }
+    } catch (err: any) {
+      results.instagram_session = { ok: false, detail: `Private API test failed: ${err.message}` };
+    }
+  } else {
+    results.instagram_session = { ok: false, detail: 'INSTAGRAM_SESSION_ID not set — cannot download videos from Instagram' };
+  }
+
+  // Check all env vars (comprehensive)
+  const envChecks: Record<string, { set: boolean; required: boolean; purpose: string }> = {
+    NEXT_PUBLIC_SUPABASE_URL: { set: !!process.env.NEXT_PUBLIC_SUPABASE_URL, required: true, purpose: 'Supabase connection' },
+    SUPABASE_SERVICE_ROLE_KEY: { set: !!process.env.SUPABASE_SERVICE_ROLE_KEY, required: true, purpose: 'Supabase admin access' },
+    GOOGLE_CLIENT_ID: { set: !!process.env.GOOGLE_CLIENT_ID, required: true, purpose: 'YouTube OAuth' },
+    GOOGLE_CLIENT_SECRET: { set: !!process.env.GOOGLE_CLIENT_SECRET, required: true, purpose: 'YouTube OAuth' },
+    RAILWAY_WORKER_SECRET: { set: !!process.env.RAILWAY_WORKER_SECRET, required: true, purpose: 'Worker auth' },
+    META_APP_SECRET: { set: !!process.env.META_APP_SECRET, required: true, purpose: 'Instagram Graph API appsecret_proof' },
+    INSTAGRAM_SESSION_ID: { set: !!process.env.INSTAGRAM_SESSION_ID, required: true, purpose: 'Instagram private API (video download)' },
+    YOUTUBE_API_KEY: { set: !!process.env.YOUTUBE_API_KEY, required: false, purpose: 'YouTube Data API (audio search)' },
+    YOUTUBE_STUDIO_COOKIES: { set: !!process.env.YOUTUBE_STUDIO_COOKIES, required: false, purpose: 'YouTube Studio automation (music adder)' },
+    ANTHROPIC_API_KEY: { set: !!process.env.ANTHROPIC_API_KEY, required: false, purpose: 'AI features' },
+    GMAIL_APP_PASSWORD: { set: !!process.env.GMAIL_APP_PASSWORD, required: false, purpose: 'Email notifications' },
+  };
+  const missingRequired = Object.entries(envChecks).filter(([_, v]) => v.required && !v.set);
+  const missingOptional = Object.entries(envChecks).filter(([_, v]) => !v.required && !v.set);
+  if (missingRequired.length) {
+    results.env_vars = { ok: false, detail: `MISSING REQUIRED: ${missingRequired.map(([k, v]) => `${k} (${v.purpose})`).join(', ')}` };
+  } else if (missingOptional.length) {
+    results.env_vars = { ok: true, detail: `All required set. Optional missing: ${missingOptional.map(([k, v]) => `${k} (${v.purpose})`).join(', ')}` };
+  } else {
+    results.env_vars = { ok: true, detail: 'All env vars set (required + optional).' };
+  }
 
   // Check Supabase Storage
   try {
@@ -569,6 +674,114 @@ app.post('/push-pipeline', auth, async (_req: any, res: any) => {
   } catch (err: any) {
     log.push(`ERROR: ${err.message}`);
     res.status(500).json({ ok: false, error: err.message, log });
+  }
+});
+
+// Test single: take an Instagram reel URL, push it through the entire pipeline, return YouTube URL
+app.post('/test-single', auth, async (req: any, res: any) => {
+  const { url } = req.body;
+  if (!url || !url.includes('instagram.com')) {
+    return res.status(400).json({ error: 'Send { url: "https://www.instagram.com/reel/..." }' });
+  }
+
+  const supabase = getSupabase();
+  const log: string[] = [];
+
+  try {
+    log.push(`Testing pipeline with: ${url}`);
+
+    // Extract shortcode for media ID
+    const shortcodeMatch = url.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
+    if (!shortcodeMatch) return res.status(400).json({ error: 'Cannot extract shortcode from URL' });
+
+    // Create a test post in the DB
+    const { data: post, error: insertErr } = await supabase
+      .from('curated_posts')
+      .insert({
+        ig_media_id: `test_${shortcodeMatch[2]}`,
+        ig_username: 'test',
+        ig_permalink: url,
+        ig_like_count: 0,
+        status: 'pending',
+        hashtags: [],
+      })
+      .select('*')
+      .single();
+
+    if (insertErr || !post) {
+      return res.status(500).json({ error: `DB insert failed: ${insertErr?.message}` });
+    }
+
+    log.push(`Created post ${post.id}`);
+
+    // Step 1: Download
+    log.push('[download] Fetching video from Instagram...');
+    const { getVideoUrl } = await import('./lib/instagram');
+    const { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts } = await import('./lib/ffmpeg');
+    const { uploadToYouTube } = await import('./lib/youtube');
+
+    const { url: videoUrl, width, height } = await getVideoUrl(url);
+    const videoPath = await downloadFile(videoUrl, `test_${post.id}.mp4`);
+    const duration = await getVideoDuration(videoPath);
+    log.push(`[download] OK: ${width}x${height}, ${duration.toFixed(1)}s`);
+
+    if (duration < 3 || duration > 300) {
+      return res.json({ ok: false, error: `Duration ${duration.toFixed(1)}s out of range`, log });
+    }
+
+    await supabase.from('curated_posts').update({ status: 'downloaded', video_duration: duration }).eq('id', post.id);
+
+    // Step 2: Strip audio
+    log.push('[audio] Stripping audio...');
+    const silentPath = await stripAudio(videoPath);
+    await supabase.from('curated_posts').update({ status: 'audio_ready' }).eq('id', post.id);
+    log.push('[audio] OK');
+
+    // Step 3: Edit
+    log.push('[edit] Vertical crop, scale 1080x1920, trim...');
+    let editedPath = await ensureVertical(silentPath);
+    editedPath = await ensureShortsResolution(editedPath);
+    editedPath = await trimToShorts(editedPath, 59);
+    const finalDuration = await getVideoDuration(editedPath);
+    await supabase.from('curated_posts').update({ status: 'edited', video_duration: finalDuration }).eq('id', post.id);
+    log.push(`[edit] OK: ${finalDuration.toFixed(1)}s`);
+
+    // Step 4: Metadata
+    const title = `🔥 Incredible! Watch Till The End`;
+    const description = `This might be the most viral video you see today.\n\nOriginal: ${url}\n\n#shorts #viral #trending #fyp #mustwatch`;
+    const hashtags = ['shorts', 'viral', 'trending', 'fyp', 'mustwatch'];
+    await supabase.from('curated_posts').update({ status: 'metadata_ready', title, description, hashtags }).eq('id', post.id);
+    log.push(`[metadata] Title: "${title}"`);
+
+    // Step 5: Upload to YouTube
+    log.push('[publish] Uploading to YouTube...');
+    await supabase.from('curated_posts').update({ status: 'uploading' }).eq('id', post.id);
+
+    const ytTitle = `${title} #Shorts`.slice(0, 100);
+    const hashtagStr = hashtags.map(h => `#${h}`).join(' ');
+    const fullDesc = `${description}\n\n${hashtagStr}\n\nOriginal: ${url}\n🌊 Discover more at gwdf.pro`;
+
+    const ytVideoId = await uploadToYouTube(editedPath, ytTitle, fullDesc, hashtags);
+    const ytUrl = `https://youtube.com/shorts/${ytVideoId}`;
+
+    await supabase.from('curated_posts').update({
+      status: 'posted',
+      youtube_video_id: ytVideoId,
+      error_message: null,
+    }).eq('id', post.id);
+
+    log.push(`[publish] SUCCESS! ${ytUrl}`);
+
+    // Cleanup temp files
+    const fs = await import('fs');
+    for (const f of [videoPath, silentPath, editedPath]) {
+      try { fs.unlinkSync(f); } catch {}
+    }
+
+    res.json({ ok: true, youtube_url: ytUrl, youtube_video_id: ytVideoId, post_id: post.id, log });
+  } catch (err: any) {
+    log.push(`FAILED: ${err.message}`);
+    res.json({ ok: false, error: err.message, log });
   }
 });
 

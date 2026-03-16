@@ -1004,6 +1004,12 @@ export default function SwarmDashboard() {
               <Zap className="w-5 h-5" />
               BURST
             </button>
+            <button onClick={async () => { try { const igUrl = prompt('Paste an Instagram Reel URL to test the full pipeline:', 'https://www.instagram.com/reel/...'); if (!igUrl || !igUrl.includes('instagram.com')) return; alert('Testing full pipeline with this reel... This takes 1-2 minutes.'); const r = await fetch('/api/swarm/test-single', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: igUrl }) }); const d = await r.json(); alert(d.ok ? `SUCCESS! YouTube Short: ${d.youtube_url}\n\n${(d.log||[]).join('\n')}` : `FAILED: ${d.error}\n\n${(d.log||[]).join('\n')}`); fetchData(); } catch { alert('Worker unreachable'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(0,200,255,0.15)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,200,255,0.5)', color: '#00C8FF', textShadow: '0 0 8px #00C8FF80' }}>
+              <ArrowRight className="w-5 h-5" />
+              TEST
+            </button>
             <button onClick={async () => { try { const r = await fetch('/api/swarm/test-youtube', { method: 'POST' }); const d = await r.json(); alert(d.ok ? `YouTube OK! Channel: ${d.channel}` : `YouTube BROKEN: [${d.stage}] ${d.error}`); } catch { alert('Worker unreachable'); } }}
               className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
               style={{ background: 'rgba(255,0,0,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,0,0,0.3)', color: '#FF4444', textShadow: '0 0 6px #FF444460' }}>
