@@ -86,6 +86,14 @@ function dictValue(fields: string[]): string {
         </dict>`;
 }
 
+/** Generate a stable UUID for grouping If/Otherwise/EndIf blocks */
+function groupId(label: string): string {
+  // Deterministic UUID-like string from label
+  const hash = label.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+  const hex = Math.abs(hash).toString(16).padStart(8, '0');
+  return `${hex}-${hex.slice(0, 4)}-4${hex.slice(1, 4)}-a${hex.slice(1, 4)}-${hex}${hex.slice(0, 4)}`;
+}
+
 // ── Action builders ─────────────────────────────────────────────────────────
 
 function actionSetVar(name: string, input?: string): string {
@@ -182,6 +190,83 @@ function actionNotification(title: string, body: string): string {
     </dict>`;
 }
 
+/** Get URLs from input */
+function actionGetUrls(input: string): string {
+  return `<dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.detect.link</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFInput</key>${input}
+      </dict>
+    </dict>`;
+}
+
+/** Count items */
+function actionCount(): string {
+  return `<dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.count</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFCountType</key><string>Items</string>
+      </dict>
+    </dict>`;
+}
+
+/** If (condition on number: 4 = greater than) */
+function actionIf(gid: string, condition: number, value: string): string {
+  return `<dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.conditional</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFControlFlowMode</key><integer>0</integer>
+        <key>WFCondition</key><integer>${condition}</integer>
+        <key>WFNumberValue</key><string>${value}</string>
+        <key>GroupingIdentifier</key><string>${gid}</string>
+      </dict>
+    </dict>`;
+}
+
+/** Otherwise block */
+function actionOtherwise(gid: string): string {
+  return `<dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.conditional</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFControlFlowMode</key><integer>1</integer>
+        <key>GroupingIdentifier</key><string>${gid}</string>
+      </dict>
+    </dict>`;
+}
+
+/** End If block */
+function actionEndIf(gid: string): string {
+  return `<dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.conditional</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFControlFlowMode</key><integer>2</integer>
+        <key>GroupingIdentifier</key><string>${gid}</string>
+      </dict>
+    </dict>`;
+}
+
+/** Get first item from a list */
+function actionGetFirstItem(): string {
+  return `<dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.getitemfromlist</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFItemSpecifier</key><string>First Item</string>
+      </dict>
+    </dict>`;
+}
+
 function actionComment(text: string): string {
   return `<dict>
       <key>WFWorkflowActionIdentifier</key>
@@ -201,17 +286,53 @@ function buildShortcut(baseUrl: string): string {
     field('Content-Type', txt('application/json')),
   ];
 
+  const gid = groupId('url-or-file');
+
   const actions = [
-    // Store the input file
-    actionComment('Upload to Flow — saves video to your AI pipeline for YouTube Shorts'),
-    actionSetVar('videoFile', extInput()),
+    // Store the input
+    actionComment('Upload to Flow — works with Safari URLs and video files for YouTube Shorts'),
+    actionSetVar('input', extInput()),
+
+    // Detect if the input is a URL (from Safari Share Sheet)
+    actionGetUrls(att('input')),
+    actionSetVar('detectedUrls'),
+    actionCount(),
+    actionSetVar('urlCount'),
+
+    // If URLs detected → use URL mode (Safari path)
+    // Condition 4 = "is greater than", comparing against "0"
+    actionIf(gid, 4, '0'),
+
+    // ── URL PATH (Safari) ──
+    actionComment('Safari URL detected — server will download the video'),
+    actionGetFirstItem(),
+    actionSetVar('videoUrl'),
+
+    // Warm up the server
+    actionUrlPostJson(submitUrl, jsonHeaders, [
+      field('mode', txt('sign')),
+      field('filename', txt('safari_video.mp4')),
+    ]),
+
+    // Send URL to server for download + pipeline registration
+    actionUrlPostJson(submitUrl, jsonHeaders, [
+      field('mode', txt('url')),
+      field('url', v('videoUrl')),
+    ]),
+    actionSetVar('urlResponse'),
+    actionNotification('Flow AI', 'Video URL sent to pipeline! Server is downloading it now.'),
+
+    // ── FILE PATH (direct video share) ──
+    actionOtherwise(gid),
+
+    actionComment('Video file shared — uploading directly'),
+    actionSetVar('videoFile', att('input')),
 
     // Get the filename
     actionGetName(att('videoFile')),
     actionSetVar('fileName'),
 
     // Sign — get upload token and path
-    actionComment('Get a signed upload URL'),
     actionUrlPostJson(submitUrl, jsonHeaders, [
       field('mode', txt('sign')),
       field('filename', v('fileName')),
@@ -226,12 +347,11 @@ function buildShortcut(baseUrl: string): string {
     actionGetDictValue('token', att('signResponse')),
     actionSetVar('uploadToken'),
 
-    // Upload file and auto-register in pipeline (combined into one request)
-    actionComment('Upload video and register in pipeline'),
+    // Upload file and auto-register in pipeline
     actionUploadFileViaProxy(uploadUrl, 'uploadToken', 'storagePath', 'fileId', 'fileName', 'videoFile'),
-
-    // Done!
     actionNotification('Flow AI', 'Video uploaded to pipeline!'),
+
+    actionEndIf(gid),
   ];
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -255,6 +375,7 @@ function buildShortcut(baseUrl: string): string {
   </array>
   <key>WFWorkflowInputContentItemClasses</key>
   <array>
+    <string>WFURLContentItem</string>
     <string>WFAVAssetContentItem</string>
     <string>WFGenericFileContentItem</string>
     <string>WFImageContentItem</string>
