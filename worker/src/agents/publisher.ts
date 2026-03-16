@@ -6,8 +6,8 @@ import { getSupabase } from '../shared/supabase';
 import { logActivity } from '../shared/activity-log';
 import { sendPostNotification } from '../lib/email';
 
-const MAX_DAILY_UPLOADS = 8;
-const POLL_INTERVAL_MS = 60 * 1000; // Check every 60s, publish immediately when ready (8/day cap)
+const MAX_DAILY_UPLOADS = 6;
+const POLL_INTERVAL_MS = 3 * 60 * 60 * 1000; // Every 3 hours → 6 uploads spread across 18 hours
 const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // Heartbeat every 4 min
 const MAX_PUBLISH_RETRIES = 2; // Retry YouTube upload up to 2 times before failing
 
