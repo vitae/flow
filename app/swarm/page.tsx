@@ -153,6 +153,9 @@ function activityToLogLines(act: Activity, color: string): { text: string; color
       lines.push({ text: `[${t}] REFRESHED`, color });
       if (act.details.cookies_count) lines.push({ text: `  cookies: ${String(act.details.cookies_count)}`, color, dim: true });
       break;
+    case 'heartbeat':
+      lines.push({ text: `[${t}] ALIVE — ${String(act.details.status || 'polling')}`, color, dim: true });
+      break;
     case 'error':
       lines.push({ text: `[${t}] ERROR`, color: '#FF0000' });
       if (act.details.error) lines.push({ text: `  ${String(act.details.error).slice(0, 60)}`, color: '#FF0000', dim: true });
@@ -166,6 +169,7 @@ function activityToLogLines(act: Activity, color: string): { text: string; color
 
 function getThinking(agentId: string, lastAct: Activity | undefined): { thinking: string; next: string } {
   if (!lastAct) return { thinking: 'Idle. Waiting for work...', next: 'Poll for new tasks' };
+  if (lastAct.action === 'heartbeat') return { thinking: 'Running. Polling for work...', next: `Status: ${String(lastAct.details.status || 'active')}` };
   if (lastAct.action === 'error') return { thinking: 'Last run failed. Will retry.', next: 'Retry after cooldown' };
 
   const map: Record<string, Record<string, { thinking: string; next: string }>> = {

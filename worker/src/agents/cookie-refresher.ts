@@ -166,6 +166,13 @@ export function startCookieRefresher() {
     }
   }
 
+  // Heartbeat between long refresh cycles so dashboard shows ONLINE
+  async function heartbeat() {
+    await logActivity('cookie_refresher', 'heartbeat', { status: 'standby', next_refresh_min: REFRESH_INTERVAL_MS / 60000 });
+  }
+
   tick();
   setInterval(tick, REFRESH_INTERVAL_MS);
+  // Heartbeat every 4 min (refresh cycle is 45 min)
+  setInterval(heartbeat, 4 * 60 * 1000);
 }

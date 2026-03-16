@@ -8,6 +8,7 @@ import { sendPostNotification } from '../lib/email';
 
 const MAX_DAILY_UPLOADS = 8;
 const POLL_INTERVAL_MS = 60 * 1000; // Check every 60s, publish immediately when ready (8/day cap)
+const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // Heartbeat every 4 min
 
 async function getDailyUploadCount(): Promise<number> {
   const today = new Date().toISOString().split('T')[0];
@@ -96,11 +97,17 @@ async function handlePost(post: CuratedPost) {
 // Custom publisher loop with rate limiting
 export function startPublisher() {
   const supabase = getSupabase();
+  let lastHeartbeat = 0;
 
   async function tick(): Promise<number> {
     const dailyCount = await getDailyUploadCount();
     if (dailyCount >= MAX_DAILY_UPLOADS) {
       console.log(`[publisher] Daily limit reached (${dailyCount}/${MAX_DAILY_UPLOADS}), sleeping...`);
+      const now = Date.now();
+      if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
+        lastHeartbeat = now;
+        await logActivity('publisher', 'heartbeat', { status: 'rate_limited', daily: `${dailyCount}/${MAX_DAILY_UPLOADS}` });
+      }
       return 0;
     }
     console.log(`[publisher] Daily uploads: ${dailyCount}/${MAX_DAILY_UPLOADS}`);
@@ -112,7 +119,14 @@ export function startPublisher() {
       .order('ig_like_count', { ascending: false })
       .limit(1);
 
-    if (!posts?.length) return 0;
+    if (!posts?.length) {
+      const now = Date.now();
+      if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
+        lastHeartbeat = now;
+        await logActivity('publisher', 'heartbeat', { status: 'waiting', daily: `${dailyCount}/${MAX_DAILY_UPLOADS}` });
+      }
+      return 0;
+    }
     const post = posts[0];
 
     try {

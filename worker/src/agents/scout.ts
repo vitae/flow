@@ -5,8 +5,10 @@ import { getTodaysHashtags, getIGAccessToken, searchHashtag, IGMedia } from '../
 const SCOUT_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes between hashtag searches
 const MIN_ENGAGEMENT = 25_000;  // Primary: viral (25k+ engagement score)
 const MIN_ENGAGEMENT_FALLBACK = 5_000; // Fallback: decent traction (5k+)
+const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // Heartbeat every 4 min
 
 let hashtagIndex = 0;
+let lastHeartbeat = 0;
 
 async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
   const supabase = getSupabase();
@@ -90,13 +92,23 @@ export async function runScout(): Promise<{ discovered: number; queued: number }
   return { discovered: hashtags.length, queued: totalQueued };
 }
 
-// Continuous scouting loop — one hashtag every 10s
+// Continuous scouting loop — one hashtag every 10min
 export function startScout() {
   console.log(`[scout] Continuous scout started — 1 hashtag every ${SCOUT_INTERVAL_MS / 1000}s`);
 
   async function tick() {
     try {
-      await scoutOneHashtag();
+      const result = await scoutOneHashtag();
+      // Log heartbeat when no new content found so dashboard shows ONLINE
+      if (result.queued === 0) {
+        const now = Date.now();
+        if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
+          lastHeartbeat = now;
+          await logActivity('scout', 'heartbeat', { status: 'scanning', hashtag: result.hashtag });
+        }
+      } else {
+        lastHeartbeat = Date.now(); // discovered log counts as alive
+      }
     } catch (err: any) {
       console.error(`[scout] Error:`, err.message);
     }
