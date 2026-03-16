@@ -11,12 +11,23 @@ const POLL_INTERVAL_MS = 60 * 1000; // Check every 60s, publish immediately when
 
 async function getDailyUploadCount(): Promise<number> {
   const today = new Date().toISOString().split('T')[0];
-  const { count } = await getSupabase()
-    .from('curated_posts')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'posted')
-    .gte('updated_at', `${today}T00:00:00Z`);
-  return count || 0;
+  try {
+    // Try updated_at first (set by trigger after migration)
+    const { count } = await getSupabase()
+      .from('curated_posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'posted')
+      .gte('updated_at', `${today}T00:00:00Z`);
+    return count || 0;
+  } catch {
+    // Fallback: count all posted today by created_at (less accurate but unblocks publishing)
+    const { count } = await getSupabase()
+      .from('curated_posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'posted')
+      .gte('created_at', `${today}T00:00:00Z`);
+    return count || 0;
+  }
 }
 
 async function handlePost(post: CuratedPost) {
@@ -69,10 +80,12 @@ async function handlePost(post: CuratedPost) {
   // Clean up after all uploads are done
   cleanup(localVideoPath);
 
+  // Log cross-post results (columns may not exist in DB yet)
+  if (igMediaId) console.log(`[publisher] IG Reels ID: ${igMediaId}`);
+  if (fbVideoId) console.log(`[publisher] FB Reels ID: ${fbVideoId}`);
+
   return {
     youtube_video_id: ytVideoId,
-    ig_reels_id: igMediaId,
-    fb_reels_id: fbVideoId,
     _igError: igError,
     _fbError: fbError,
   };

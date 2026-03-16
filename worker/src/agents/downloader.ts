@@ -1,6 +1,6 @@
 import { createAgentLoop } from '../shared/agent-loop';
 import { CuratedPost } from '../shared/types';
-import { downloadFile, getVideoDuration } from '../lib/ffmpeg';
+import { downloadFile, getVideoDuration, uploadToStorage } from '../lib/ffmpeg';
 import { getVideoUrl } from '../lib/instagram';
 
 const MIN_DURATION = 10;
@@ -21,7 +21,12 @@ async function handlePost(post: CuratedPost) {
     throw new Error(`Duration ${duration.toFixed(1)}s outside ${MIN_DURATION}-${MAX_DURATION}s range, skipping`);
   }
 
-  return { video_path: videoPath, video_duration: duration };
+  // Upload to Supabase Storage so the file survives worker restarts
+  const storagePath = `uploads/${post.id}.mp4`;
+  await uploadToStorage(videoPath, storagePath);
+  console.log(`[downloader] Uploaded to storage: ${storagePath}`);
+
+  return { video_path: storagePath, video_duration: duration };
 }
 
 export const downloaderAgent = createAgentLoop(
