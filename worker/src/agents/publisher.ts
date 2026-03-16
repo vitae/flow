@@ -9,6 +9,7 @@ import { sendPostNotification } from '../lib/email';
 const MAX_DAILY_UPLOADS = 8;
 const POLL_INTERVAL_MS = 60 * 1000; // Check every 60s, publish immediately when ready (8/day cap)
 const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // Heartbeat every 4 min
+const MAX_PUBLISH_RETRIES = 2; // Retry YouTube upload up to 2 times before failing
 
 async function getDailyUploadCount(): Promise<number> {
   const today = new Date().toISOString().split('T')[0];
@@ -31,6 +32,22 @@ async function getDailyUploadCount(): Promise<number> {
   }
 }
 
+/** Check if an error is transient and worth retrying */
+function isTransientError(err: any): boolean {
+  const msg = (err.message || '').toLowerCase();
+  return (
+    msg.includes('timeout') ||
+    msg.includes('econnreset') ||
+    msg.includes('econnrefused') ||
+    msg.includes('socket hang up') ||
+    msg.includes('network') ||
+    msg.includes('503') ||
+    msg.includes('429') ||
+    msg.includes('rate limit') ||
+    msg.includes('quota')
+  );
+}
+
 async function handlePost(post: CuratedPost) {
   if (!post.video_path) throw new Error('No video_path set');
   if (!post.title || !post.description) throw new Error('No metadata set');
@@ -47,13 +64,33 @@ async function handlePost(post: CuratedPost) {
   const hashtagStr = (post.hashtags || []).map(h => `#${h}`).join(' ');
   const fullDescription = `${post.description}\n\n${hashtagStr}\n\nOriginal: ${post.ig_permalink}\n🌊 Discover more at gwdf.pro`;
 
-  const ytVideoId = await uploadToYouTube(
-    localVideoPath,
-    ytTitle,
-    fullDescription,
-    post.hashtags || [],
-  );
-  console.log(`[publisher] YouTube: https://youtube.com/shorts/${ytVideoId}`);
+  // YouTube upload with retry for transient failures
+  let ytVideoId: string | undefined;
+  let lastYtError: any;
+  for (let attempt = 1; attempt <= MAX_PUBLISH_RETRIES + 1; attempt++) {
+    try {
+      ytVideoId = await uploadToYouTube(
+        localVideoPath,
+        ytTitle,
+        fullDescription,
+        post.hashtags || [],
+      );
+      console.log(`[publisher] YouTube: https://youtube.com/shorts/${ytVideoId}`);
+      break;
+    } catch (err: any) {
+      lastYtError = err;
+      console.error(`[publisher] YouTube upload attempt ${attempt}/${MAX_PUBLISH_RETRIES + 1} failed:`, err.message);
+      if (attempt <= MAX_PUBLISH_RETRIES && isTransientError(err)) {
+        const delay = attempt * 5000; // 5s, 10s
+        console.log(`[publisher] Retrying in ${delay / 1000}s...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+
+  if (!ytVideoId) {
+    throw new Error(`YouTube upload failed after ${MAX_PUBLISH_RETRIES + 1} attempts: ${lastYtError?.message}`);
+  }
 
   // Cross-post to Instagram Reels
   let igMediaId: string | null = null;

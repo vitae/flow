@@ -7,7 +7,7 @@ import { ensureTmpDir } from './ffmpeg';
 
 async function getYouTubeAuth() {
   const supabase = getSupabase();
-  const { data: connection } = await supabase
+  const { data: connection, error: connError } = await supabase
     .from('social_connections')
     .select('*')
     .eq('platform', 'youtube')
@@ -15,7 +15,17 @@ async function getYouTubeAuth() {
     .limit(1)
     .single();
 
-  if (!connection) throw new Error('No YouTube connection found');
+  if (connError || !connection) {
+    throw new Error(`No YouTube connection found in social_connections table. ${connError?.message || 'Ensure you have an active YouTube connection.'}`);
+  }
+
+  if (!connection.refresh_token) {
+    throw new Error('YouTube connection exists but has no refresh_token. Re-authenticate YouTube in the dashboard.');
+  }
+
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    throw new Error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variables');
+  }
 
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -26,15 +36,30 @@ async function getYouTubeAuth() {
     refresh_token: connection.refresh_token,
   });
 
-  // Auto-refresh if needed
-  const { credentials } = await oauth2Client.refreshAccessToken();
-  if (credentials.access_token !== connection.access_token) {
-    await supabase.from('social_connections').update({
-      access_token: credentials.access_token,
-      token_expires_at: credentials.expiry_date
-        ? new Date(credentials.expiry_date).toISOString()
-        : null,
-    }).eq('id', connection.id);
+  // Only refresh if token is expired or about to expire (within 5 min)
+  const expiresAt = connection.token_expires_at ? new Date(connection.token_expires_at).getTime() : 0;
+  const needsRefresh = !expiresAt || Date.now() > expiresAt - 5 * 60 * 1000;
+
+  if (needsRefresh) {
+    try {
+      console.log('[youtube] Access token expired or missing expiry, refreshing...');
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      if (credentials.access_token !== connection.access_token) {
+        await supabase.from('social_connections').update({
+          access_token: credentials.access_token,
+          token_expires_at: credentials.expiry_date
+            ? new Date(credentials.expiry_date).toISOString()
+            : null,
+        }).eq('id', connection.id);
+        console.log('[youtube] Token refreshed successfully');
+      }
+    } catch (refreshErr: any) {
+      const msg = refreshErr.message || String(refreshErr);
+      if (msg.includes('invalid_grant')) {
+        throw new Error(`YouTube refresh token is invalid or revoked. Re-authenticate YouTube in the dashboard. (${msg})`);
+      }
+      throw new Error(`YouTube token refresh failed: ${msg}`);
+    }
   }
 
   return oauth2Client;

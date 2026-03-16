@@ -992,6 +992,18 @@ export default function SwarmDashboard() {
               <Smartphone className="w-5 h-5" />
               iOS
             </a>
+            <button onClick={async () => { try { const r = await fetch('/api/swarm/retry-failed', { method: 'POST' }); const d = await r.json(); alert(`Retried ${d.retried || 0} failed posts`); fetchData(); } catch { alert('Worker unreachable'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(255,100,0,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,100,0,0.3)', color: '#FF6400', textShadow: '0 0 6px #FF640060' }}>
+              <RefreshCw className="w-5 h-5" />
+              RETRY
+            </button>
+            <button onClick={async () => { try { const r = await fetch('/api/swarm/diagnose'); const d = await r.json(); alert(JSON.stringify(d.checks || d, null, 2)); } catch { alert('Worker unreachable'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(255,0,255,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,0,255,0.3)', color: '#FF00FF', textShadow: '0 0 6px #FF00FF60' }}>
+              <RefreshCw className="w-5 h-5" />
+              DIAGNOSE
+            </button>
             <button onClick={fetchData}
               className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl text-flow-green transition-all hover:scale-105"
               style={{ background: 'rgba(0,255,0,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,0,0.2)' }}>
