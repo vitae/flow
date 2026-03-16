@@ -153,10 +153,10 @@ function actionUrlPutFile(urlVar: string, contentTypeVar: string, fileVar: strin
       <string>is.workflow.actions.downloadurl</string>
       <key>WFWorkflowActionParameters</key>
       <dict>
-        <key>WFURL</key>${v(urlVar)}
+        <key>WFURL</key>${att(urlVar)}
         <key>WFHTTPMethod</key><string>PUT</string>
         <key>WFHTTPHeaders</key>${dictValue([
-          field('Content-Type', v(contentTypeVar)),
+          field('Content-Type', att(contentTypeVar)),
         ])}
         <key>WFHTTPBodyType</key><string>File</string>
         <key>WFRequestVariable</key>${att(fileVar)}
