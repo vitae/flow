@@ -716,7 +716,7 @@ app.post('/test-single', auth, async (req: any, res: any) => {
     log.push(`Testing pipeline with: ${url}`);
 
     // Extract shortcode for media ID
-    const shortcodeMatch = url.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
+    const shortcodeMatch = url.match(/\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/);
     if (!shortcodeMatch) return res.status(400).json({ error: 'Cannot extract shortcode from URL' });
 
     // Create a test post in the DB

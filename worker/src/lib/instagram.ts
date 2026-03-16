@@ -121,7 +121,7 @@ export async function getVideoUrl(permalink: string): Promise<{ url: string; wid
   const sessionId = process.env.INSTAGRAM_SESSION_ID;
   if (!sessionId) throw new Error('INSTAGRAM_SESSION_ID required');
 
-  const shortcode = permalink.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/)?.[2];
+  const shortcode = permalink.match(/\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/)?.[2];
   if (!shortcode) throw new Error(`Cannot extract shortcode from: ${permalink}`);
 
   const mediaId = shortcodeToMediaId(shortcode);
