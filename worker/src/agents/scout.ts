@@ -2,7 +2,7 @@ import fs from 'fs';
 import { getSupabase } from '../shared/supabase';
 import { logActivity } from '../shared/activity-log';
 import { getTodaysHashtags, getIGAccessToken, searchHashtag, getVideoUrl, IGMedia } from '../lib/instagram';
-import { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts, uploadToStorage, cleanup } from '../lib/ffmpeg';
+import { downloadFile, getVideoDuration, stripAudio, ensureVerticalAndScale, trimToShorts, uploadToStorage, cleanup } from '../lib/ffmpeg';
 import { uploadToYouTube } from '../lib/youtube';
 
 const SCOUT_INTERVAL_MS = 10 * 60 * 1000; // OVERDRIVE: every 10 minutes
@@ -160,11 +160,8 @@ async function pushThroughPipeline(postId: string, permalink: string): Promise<s
     console.log(`[scout-pipeline] ${postId} editing`);
     await supabase.from('curated_posts').update({ status: 'editing' }).eq('id', postId);
 
-    const verticalPath = await ensureVertical(silentPath);
-    if (verticalPath !== silentPath) tempFiles.push(verticalPath);
-
-    const scaledPath = await ensureShortsResolution(verticalPath);
-    if (scaledPath !== verticalPath) tempFiles.push(scaledPath);
+    const scaledPath = await ensureVerticalAndScale(silentPath);
+    if (scaledPath !== silentPath) tempFiles.push(scaledPath);
 
     const trimmedPath = await trimToShorts(scaledPath, 59);
     if (trimmedPath !== scaledPath) tempFiles.push(trimmedPath);

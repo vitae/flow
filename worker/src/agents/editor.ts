@@ -1,6 +1,6 @@
 import { createAgentLoop } from '../shared/agent-loop';
 import { CuratedPost } from '../shared/types';
-import { trimToShorts, getVideoDuration, ensureVertical, ensureLocalFile, uploadToStorage, ensureShortsResolution } from '../lib/ffmpeg';
+import { trimToShorts, getVideoDuration, ensureVerticalAndScale, ensureLocalFile, uploadToStorage } from '../lib/ffmpeg';
 import { getSupabase } from '../shared/supabase';
 
 const MIN_DURATION = 3; // YouTube Shorts minimum
@@ -36,15 +36,11 @@ async function handlePost(post: CuratedPost) {
     throw new Error(`Video too short (${rawDuration.toFixed(1)}s) — YouTube Shorts requires at least ${MIN_DURATION}s`);
   }
 
-  // Ensure vertical (9:16) aspect ratio for YouTube Shorts
-  console.log(`[editor] Ensuring vertical aspect ratio for ${localPath}`);
-  const verticalPath = await ensureVertical(localPath);
+  // Single-pass: crop to vertical + scale to 1080x1920 (reduces memory vs two encodes)
+  console.log(`[editor] Processing ${localPath} → vertical 1080x1920`);
+  const scaledPath = await ensureVerticalAndScale(localPath);
 
-  // Scale to 1080x1920 for optimal YouTube Shorts quality
-  console.log(`[editor] Scaling to 1080x1920 for Shorts`);
-  const scaledPath = await ensureShortsResolution(verticalPath);
-
-  // Trim to ≤3 minutes for Shorts eligibility
+  // Trim to ≤59s for Shorts eligibility
   console.log(`[editor] Trimming to ≤${MAX_DURATION}s`);
   const trimmedPath = await trimToShorts(scaledPath, MAX_DURATION);
   const finalDuration = await getVideoDuration(trimmedPath);
@@ -64,7 +60,7 @@ export const editorAgent = createAgentLoop(
     processingStatus: 'editing',
     outputStatus: 'edited',
     pollIntervalMs: 10_000,
-    batchSize: 2,
+    batchSize: 1,
   },
   handlePost,
 );

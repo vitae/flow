@@ -218,6 +218,52 @@ export async function ensureShortsResolution(inputPath: string): Promise<string>
   });
 }
 
+/**
+ * Single-pass: crops to vertical (if needed) and scales to 1080x1920.
+ * Avoids two separate re-encodes to reduce peak memory usage.
+ */
+export async function ensureVerticalAndScale(inputPath: string): Promise<string> {
+  const { width, height } = await getVideoResolution(inputPath);
+  const aspectRatio = width / height;
+
+  // Already at target resolution
+  if (width === 1080 && height === 1920) {
+    console.log(`Video already 1080x1920, no processing needed`);
+    return inputPath;
+  }
+
+  const filters: string[] = [];
+
+  // Crop horizontal/square to 9:16 aspect ratio
+  if (aspectRatio > 1.0) {
+    const targetWidth = Math.floor(height * 9 / 16);
+    const cropW = Math.min(targetWidth, width);
+    const cropX = Math.floor((width - cropW) / 2);
+    filters.push(`crop=${cropW}:${height}:${cropX}:0`);
+    console.log(`[single-pass] Cropping ${width}x${height} → ${cropW}x${height}`);
+  }
+
+  // Scale + pad to exactly 1080x1920
+  filters.push('scale=1080:1920:force_original_aspect_ratio=decrease');
+  filters.push('pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black');
+
+  console.log(`[single-pass] ${width}x${height} → 1080x1920`);
+  const ext = path.extname(inputPath);
+  const outputPath = inputPath.replace(ext, '_shorts.mp4');
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .videoFilter(filters.join(','))
+      .videoCodec('libx264')
+      .outputOptions(['-preset', 'fast', '-crf', '28', '-threads', '1', '-max_muxing_queue_size', '512'])
+      .noAudio()
+      .output(outputPath)
+      .on('end', () => resolve(outputPath))
+      .on('error', reject)
+      .run();
+  });
+}
+
 export async function trimToShorts(inputPath: string, maxDuration: number = 180): Promise<string> {
   const duration = await getVideoDuration(inputPath);
   if (duration <= maxDuration) {
