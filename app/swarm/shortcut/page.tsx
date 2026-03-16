@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Smartphone, Copy, CheckCircle2, ArrowRight, Shield, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Smartphone, Copy, CheckCircle2, ArrowRight, Shield, Zap, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import Link from 'next/link';
 
 function CopyButton({ text, label }: { text: string; label?: string }) {
@@ -36,6 +36,63 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
         {open ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
       </button>
       {open && <div className="px-5 pb-5 space-y-4 text-white/80">{children}</div>}
+    </div>
+  );
+}
+
+function InstallShortcut({ baseUrl }: { baseUrl: string }) {
+  const [apiKey, setApiKey] = useState('');
+  const [installed, setInstalled] = useState(false);
+
+  function handleInstall() {
+    if (!apiKey.trim()) return;
+    const downloadUrl = `${baseUrl}/api/swarm/shortcut?key=${encodeURIComponent(apiKey.trim())}`;
+    window.location.href = downloadUrl;
+    setInstalled(true);
+    setTimeout(() => setInstalled(false), 5000);
+  }
+
+  return (
+    <div className="border-2 border-cyan-500/30 rounded-2xl bg-gradient-to-b from-cyan-500/10 to-purple-500/10 p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center">
+          <Download size={24} />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold">Install Shortcut</h2>
+          <p className="text-white/50 text-sm">One-tap install — enter your API key and download</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm text-white/60 mb-1.5">Your UPLOAD_API_KEY</label>
+          <input
+            type="text"
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            placeholder="Paste your API key from Railway"
+            className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500 font-mono text-sm"
+          />
+          <p className="text-xs text-white/40 mt-1">
+            This is the <code className="px-1 py-0.5 bg-white/10 rounded">UPLOAD_API_KEY</code> from your Railway environment variables.
+          </p>
+        </div>
+
+        <button
+          onClick={handleInstall}
+          disabled={!apiKey.trim()}
+          className="w-full py-3 rounded-lg font-bold text-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 active:scale-[0.98]"
+        >
+          {installed ? 'Opening Shortcuts...' : 'Download Shortcut'}
+        </button>
+
+        {installed && (
+          <p className="text-center text-sm text-green-400">
+            Tap &quot;Add Shortcut&quot; when iOS prompts you. Then share any video and select &quot;Upload to Flow&quot;.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -90,7 +147,10 @@ export default function ShortcutSetupPage() {
           ))}
         </div>
 
-        {/* Steps */}
+        {/* One-tap install */}
+        <InstallShortcut baseUrl={baseUrl} />
+
+        {/* Manual Steps (collapsed by default) */}
         <div className="space-y-4">
           <Step n={1} title="Set Your API Key">
             <p>
