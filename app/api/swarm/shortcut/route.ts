@@ -204,11 +204,23 @@ function actionComment(text: string): string {
     </dict>`;
 }
 
-function buildShortcut(baseUrl: string, apiKey: string): string {
+function actionAskForInput(prompt: string, defaultValue: string): string {
+  return `<dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.ask</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFAskActionPrompt</key><string>${esc(prompt)}</string>
+        <key>WFAskActionDefaultAnswer</key><string>${esc(defaultValue)}</string>
+      </dict>
+    </dict>`;
+}
+
+function buildShortcut(baseUrl: string, apiKey?: string): string {
   const submitUrl = `${baseUrl}/api/swarm/submit`;
 
   const authHeaders = [
-    field('Authorization', txt(`Bearer ${apiKey}`)),
+    field('Authorization', tv('Bearer ', 'apiKey')),
     field('Content-Type', txt('application/json')),
   ];
 
@@ -221,11 +233,30 @@ function buildShortcut(baseUrl: string, apiKey: string): string {
     actionGetName(att('videoFile')),
     actionSetVar('fileName'),
 
-    // 3: Warm up the server (avoids cold-start timeout)
+    // 3: Get or prompt for API key
+    ...(apiKey
+      ? [
+          actionComment(`API Key: ${apiKey.slice(0, 4)}...`),
+          `<dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.gettext</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFTextActionText</key><string>${esc(apiKey)}</string>
+      </dict>
+    </dict>`,
+        ]
+      : [
+          actionComment('Asks for your API key (from Railway env vars)'),
+          actionAskForInput('Enter your UPLOAD_API_KEY', ''),
+        ]),
+    actionSetVar('apiKey'),
+
+    // 4: Warm up the server (avoids cold-start timeout)
     actionComment('Wake up the server'),
     actionUrlGet(submitUrl),
 
-    // 4: Sign — get upload URL
+    // 5: Sign — get upload URL
     actionComment('Get a signed upload URL'),
     actionUrlPostJson(submitUrl, authHeaders, [
       field('mode', txt('sign')),
@@ -233,7 +264,7 @@ function buildShortcut(baseUrl: string, apiKey: string): string {
     ]),
     actionSetVar('signResponse'),
 
-    // 5-12: Extract dictionary values
+    // 6-13: Extract dictionary values
     actionGetDictValue('uploadUrl', att('signResponse')),
     actionSetVar('uploadUrl'),
     actionGetDictValue('id', att('signResponse')),
@@ -243,11 +274,11 @@ function buildShortcut(baseUrl: string, apiKey: string): string {
     actionGetDictValue('contentType', att('signResponse')),
     actionSetVar('contentType'),
 
-    // 13: Upload file to Supabase
+    // 14: Upload file to Supabase
     actionComment('Upload video to storage'),
     actionUrlPutFile('uploadUrl', 'contentType', 'videoFile'),
 
-    // 14: Register in pipeline
+    // 15: Register in pipeline
     actionComment('Register in the agent pipeline'),
     actionUrlPostJson(submitUrl, authHeaders, [
       field('mode', txt('register')),
@@ -256,7 +287,7 @@ function buildShortcut(baseUrl: string, apiKey: string): string {
       field('filename', v('fileName')),
     ]),
 
-    // 15: Done!
+    // 16: Done!
     actionNotification('Flow AI', 'Video uploaded to pipeline!'),
   ];
 
@@ -342,22 +373,15 @@ function installPage(currentUrl: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  const key = req.nextUrl.searchParams.get('key');
+  const key = req.nextUrl.searchParams.get('key') || undefined;
 
   // Derive base URL from request
   const proto = req.headers.get('x-forwarded-proto') || 'https';
   const host = req.headers.get('host') || 'gwdf.pro';
   const baseUrl = `${proto}://${host}`;
-  const currentUrl = `${baseUrl}/api/swarm/shortcut`;
 
-  // No key? Show the install page
-  if (!key) {
-    return new NextResponse(installPage(currentUrl), {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
-  }
-
-  // Key provided — generate and serve the .shortcut file
+  // Always serve the .shortcut file directly
+  // If ?key= is provided, it's baked in. Otherwise the shortcut prompts on run.
   const plist = buildShortcut(baseUrl, key);
 
   return new NextResponse(plist, {
