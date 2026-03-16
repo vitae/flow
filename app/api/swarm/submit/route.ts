@@ -4,8 +4,7 @@ import { createServerClient } from '@/lib/supabase/client';
 /**
  * POST /api/swarm/submit
  *
- * Auth: Bearer token via UPLOAD_API_KEY env var (required for external clients like iOS Shortcuts).
- *       Requests from the same origin (web dashboard) are allowed without auth.
+ * No auth required — the iOS Shortcut and web dashboard both call this directly.
  *
  * Two modes:
  * 1. mode=sign — Returns a signed upload URL for direct client->Supabase upload
@@ -17,26 +16,6 @@ import { createServerClient } from '@/lib/supabase/client';
  *    Returns: { id, status }
  */
 
-function isAuthorized(req: NextRequest): boolean {
-  // Allow same-origin requests (web dashboard) without auth
-  const origin = req.headers.get('origin');
-  const referer = req.headers.get('referer');
-  const host = req.headers.get('host');
-  if (host && (origin?.includes(host) || referer?.includes(host))) {
-    return true;
-  }
-
-  // External clients must provide Bearer token
-  const apiKey = process.env.UPLOAD_API_KEY;
-  if (!apiKey) return true; // If no key is configured, allow all (dev mode)
-
-  const auth = req.headers.get('authorization');
-  if (!auth) return false;
-
-  const token = auth.replace(/^Bearer\s+/i, '');
-  return token === apiKey;
-}
-
 // GET: health-check / warm-up for iOS Shortcuts
 export async function GET() {
   return NextResponse.json({ status: 'ok' });
@@ -44,10 +23,6 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!isAuthorized(req)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await req.json();
     const mode = body.mode;
 

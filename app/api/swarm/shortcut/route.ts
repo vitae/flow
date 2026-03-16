@@ -40,23 +40,6 @@ function v(name: string): string {
           </dict>`;
 }
 
-/** Text with variable appended, e.g. "Bearer <var>" */
-function tv(prefix: string, varName: string): string {
-  return `<dict>
-            <key>Value</key>
-            <dict>
-              <key>string</key><string>${esc(prefix)}${P}</string>
-              <key>attachmentsByRange</key>
-              <dict>
-                <key>{${prefix.length}, 1}</key>
-                <dict><key>Type</key><string>Variable</string><key>VariableName</key><string>${varName}</string></dict>
-              </dict>
-            </dict>
-            <key>WFSerializationType</key>
-            <string>WFTextTokenString</string>
-          </dict>`;
-}
-
 /** Attachment reference (for WFInput, WFRequestVariable) */
 function att(varName: string): string {
   return `<dict>
@@ -204,67 +187,35 @@ function actionComment(text: string): string {
     </dict>`;
 }
 
-function actionAskForInput(prompt: string, defaultValue: string): string {
-  return `<dict>
-      <key>WFWorkflowActionIdentifier</key>
-      <string>is.workflow.actions.ask</string>
-      <key>WFWorkflowActionParameters</key>
-      <dict>
-        <key>WFAskActionPrompt</key><string>${esc(prompt)}</string>
-        <key>WFAskActionDefaultAnswer</key><string>${esc(defaultValue)}</string>
-      </dict>
-    </dict>`;
-}
-
-function buildShortcut(baseUrl: string, apiKey?: string): string {
+function buildShortcut(baseUrl: string): string {
   const submitUrl = `${baseUrl}/api/swarm/submit`;
 
-  const authHeaders = [
-    field('Authorization', tv('Bearer ', 'apiKey')),
+  const jsonHeaders = [
     field('Content-Type', txt('application/json')),
   ];
 
   const actions = [
-    // 0: Store the input file
+    // Store the input file
     actionComment('Upload to Flow — saves video to your AI pipeline for YouTube Shorts'),
     actionSetVar('videoFile', extInput()),
 
-    // 1-2: Get the filename
+    // Get the filename
     actionGetName(att('videoFile')),
     actionSetVar('fileName'),
 
-    // 3: Get or prompt for API key
-    ...(apiKey
-      ? [
-          actionComment(`API Key: ${apiKey.slice(0, 4)}...`),
-          `<dict>
-      <key>WFWorkflowActionIdentifier</key>
-      <string>is.workflow.actions.gettext</string>
-      <key>WFWorkflowActionParameters</key>
-      <dict>
-        <key>WFTextActionText</key><string>${esc(apiKey)}</string>
-      </dict>
-    </dict>`,
-        ]
-      : [
-          actionComment('Asks for your API key (from Railway env vars)'),
-          actionAskForInput('Enter your UPLOAD_API_KEY', ''),
-        ]),
-    actionSetVar('apiKey'),
-
-    // 4: Warm up the server (avoids cold-start timeout)
+    // Warm up the server (avoids cold-start timeout)
     actionComment('Wake up the server'),
     actionUrlGet(submitUrl),
 
-    // 5: Sign — get upload URL
+    // Sign — get upload URL
     actionComment('Get a signed upload URL'),
-    actionUrlPostJson(submitUrl, authHeaders, [
+    actionUrlPostJson(submitUrl, jsonHeaders, [
       field('mode', txt('sign')),
       field('filename', v('fileName')),
     ]),
     actionSetVar('signResponse'),
 
-    // 6-13: Extract dictionary values
+    // Extract dictionary values
     actionGetDictValue('uploadUrl', att('signResponse')),
     actionSetVar('uploadUrl'),
     actionGetDictValue('id', att('signResponse')),
@@ -274,20 +225,20 @@ function buildShortcut(baseUrl: string, apiKey?: string): string {
     actionGetDictValue('contentType', att('signResponse')),
     actionSetVar('contentType'),
 
-    // 14: Upload file to Supabase
+    // Upload file to Supabase
     actionComment('Upload video to storage'),
     actionUrlPutFile('uploadUrl', 'contentType', 'videoFile'),
 
-    // 15: Register in pipeline
+    // Register in pipeline
     actionComment('Register in the agent pipeline'),
-    actionUrlPostJson(submitUrl, authHeaders, [
+    actionUrlPostJson(submitUrl, jsonHeaders, [
       field('mode', txt('register')),
       field('id', v('fileId')),
       field('storagePath', v('storagePath')),
       field('filename', v('fileName')),
     ]),
 
-    // 16: Done!
+    // Done!
     actionNotification('Flow AI', 'Video uploaded to pipeline!'),
   ];
 
@@ -341,15 +292,12 @@ async function signShortcut(unsignedPlist: string): Promise<ArrayBuffer> {
 }
 
 export async function GET(req: NextRequest) {
-  const key = req.nextUrl.searchParams.get('key') || undefined;
-
   // Derive base URL from request
   const proto = req.headers.get('x-forwarded-proto') || 'https';
   const host = req.headers.get('host') || 'gwdf.pro';
   const baseUrl = `${proto}://${host}`;
 
-  // Build the unsigned plist (no key → shortcut prompts user on first run)
-  const plist = buildShortcut(baseUrl, key);
+  const plist = buildShortcut(baseUrl);
   try {
     const signed = await signShortcut(plist);
     return new NextResponse(signed, {
