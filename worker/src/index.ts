@@ -297,6 +297,281 @@ app.post('/retry-failed', auth, async (_req, res) => {
   }
 });
 
+// Test YouTube auth — verifies OAuth2 tokens are working
+app.post('/test-youtube', auth, async (_req: any, res: any) => {
+  try {
+    // Dynamic import to avoid circular deps
+    const { google } = await import('googleapis');
+    const supabase = getSupabase();
+
+    // Step 1: Check social_connections
+    const { data: conn, error: connErr } = await supabase
+      .from('social_connections')
+      .select('*')
+      .eq('platform', 'youtube')
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
+    if (connErr || !conn) {
+      return res.json({ ok: false, stage: 'social_connections', error: `No active YouTube connection found. ${connErr?.message || ''}` });
+    }
+    if (!conn.refresh_token) {
+      return res.json({ ok: false, stage: 'refresh_token', error: 'YouTube connection has no refresh_token. Re-authenticate.' });
+    }
+
+    // Step 2: Check env vars
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.json({ ok: false, stage: 'env_vars', error: 'Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET' });
+    }
+
+    // Step 3: Try to refresh the access token
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+    );
+    oauth2Client.setCredentials({
+      access_token: conn.access_token,
+      refresh_token: conn.refresh_token,
+    });
+
+    let tokenInfo: string;
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      tokenInfo = `Token refreshed successfully. Expires: ${credentials.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'unknown'}`;
+
+      // Save the refreshed token
+      if (credentials.access_token !== conn.access_token) {
+        await supabase.from('social_connections').update({
+          access_token: credentials.access_token,
+          token_expires_at: credentials.expiry_date
+            ? new Date(credentials.expiry_date).toISOString()
+            : null,
+        }).eq('id', conn.id);
+      }
+    } catch (refreshErr: any) {
+      const msg = refreshErr.message || String(refreshErr);
+      if (msg.includes('invalid_grant')) {
+        return res.json({ ok: false, stage: 'token_refresh', error: `Refresh token is INVALID or REVOKED. You must re-authenticate YouTube. (${msg})` });
+      }
+      return res.json({ ok: false, stage: 'token_refresh', error: `Token refresh failed: ${msg}` });
+    }
+
+    // Step 4: Try listing channels to verify YouTube API access
+    const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+    try {
+      const channelRes = await youtube.channels.list({
+        part: ['snippet'],
+        mine: true,
+      });
+      const channel = channelRes.data.items?.[0];
+      if (!channel) {
+        return res.json({ ok: false, stage: 'youtube_api', error: 'Token valid but no YouTube channel found on this account' });
+      }
+      return res.json({
+        ok: true,
+        channel: channel.snippet?.title,
+        tokenInfo,
+        message: `YouTube auth is working! Channel: ${channel.snippet?.title}`,
+      });
+    } catch (apiErr: any) {
+      return res.json({ ok: false, stage: 'youtube_api', error: `YouTube API call failed: ${apiErr.message}` });
+    }
+  } catch (err: any) {
+    res.status(500).json({ ok: false, stage: 'unknown', error: err.message });
+  }
+});
+
+// Run a single post through the entire pipeline (pick the most ready post)
+app.post('/push-pipeline', auth, async (_req: any, res: any) => {
+  const supabase = getSupabase();
+  const log: string[] = [];
+
+  try {
+    // Find the most advanced post that isn't done yet
+    const statusPriority = ['metadata_ready', 'edited', 'audio_ready', 'downloaded', 'pending'];
+    let post: any = null;
+    let foundStatus = '';
+
+    for (const status of statusPriority) {
+      const { data } = await supabase
+        .from('curated_posts')
+        .select('*')
+        .eq('status', status)
+        .order('ig_like_count', { ascending: false })
+        .limit(1);
+      if (data?.length) {
+        post = data[0];
+        foundStatus = status;
+        break;
+      }
+    }
+
+    if (!post) {
+      // Also check for failed posts we can retry
+      const { data: failed } = await supabase
+        .from('curated_posts')
+        .select('*')
+        .eq('status', 'failed')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (failed?.length) {
+        post = failed[0];
+        const stageMap: Record<string, string> = {
+          downloader: 'pending', audio_engineer: 'downloaded',
+          editor: 'audio_ready', copywriter: 'edited', publisher: 'metadata_ready',
+        };
+        foundStatus = stageMap[post.failed_at_stage || ''] || 'pending';
+        await supabase.from('curated_posts').update({
+          status: foundStatus, error_message: null, failed_at_stage: null,
+        }).eq('id', post.id);
+        log.push(`Retried failed post ${post.id} → ${foundStatus}`);
+        post.status = foundStatus;
+      } else {
+        return res.json({ ok: false, log: ['No posts found in pipeline. Upload a video first.'] });
+      }
+    }
+
+    log.push(`Found post ${post.id} at status: ${foundStatus}`);
+
+    // Run each stage sequentially from where the post is
+    const stages: { status: string; agentName: string; run: () => Promise<void> }[] = [
+      {
+        status: 'pending',
+        agentName: 'downloader',
+        run: async () => {
+          log.push('[downloader] Starting download...');
+          const processed = await downloaderAgent.tick();
+          log.push(`[downloader] Processed ${processed} posts`);
+        },
+      },
+      {
+        status: 'downloaded',
+        agentName: 'audio_engineer',
+        run: async () => {
+          log.push('[audio_engineer] Starting audio strip...');
+          const processed = await audioEngineerAgent.tick();
+          log.push(`[audio_engineer] Processed ${processed} posts`);
+        },
+      },
+      {
+        status: 'audio_ready',
+        agentName: 'editor',
+        run: async () => {
+          log.push('[editor] Starting video edit...');
+          const processed = await editorAgent.tick();
+          log.push(`[editor] Processed ${processed} posts`);
+        },
+      },
+      {
+        status: 'edited',
+        agentName: 'copywriter',
+        run: async () => {
+          log.push('[copywriter] Generating metadata...');
+          const processed = await copywriterAgent.tick();
+          log.push(`[copywriter] Processed ${processed} posts`);
+        },
+      },
+    ];
+
+    // Run stages from where the post currently is
+    const startIdx = stages.findIndex(s => s.status === foundStatus);
+    if (startIdx >= 0) {
+      for (let i = startIdx; i < stages.length; i++) {
+        try {
+          await stages[i].run();
+          // Re-fetch post to check status
+          const { data: updated } = await supabase
+            .from('curated_posts')
+            .select('status, error_message')
+            .eq('id', post.id)
+            .single();
+          if (updated?.status === 'failed') {
+            log.push(`FAILED at ${stages[i].agentName}: ${updated.error_message}`);
+            return res.json({ ok: false, post_id: post.id, failed_at: stages[i].agentName, log });
+          }
+          log.push(`→ Status now: ${updated?.status}`);
+        } catch (err: any) {
+          log.push(`ERROR at ${stages[i].agentName}: ${err.message}`);
+          return res.json({ ok: false, post_id: post.id, failed_at: stages[i].agentName, log });
+        }
+      }
+    }
+
+    // Now try the publisher
+    log.push('[publisher] Starting YouTube upload...');
+    try {
+      const { data: readyPost } = await supabase
+        .from('curated_posts')
+        .select('*')
+        .eq('id', post.id)
+        .single();
+
+      if (readyPost?.status !== 'metadata_ready') {
+        log.push(`Post is at status "${readyPost?.status}", expected "metadata_ready"`);
+        return res.json({ ok: false, post_id: post.id, status: readyPost?.status, log });
+      }
+
+      // Import and run publisher directly
+      const { uploadToYouTube } = await import('./lib/youtube');
+      const { ensureLocalFile, cleanup } = await import('./lib/ffmpeg');
+
+      if (!readyPost.video_path) throw new Error('No video_path');
+      if (!readyPost.title || !readyPost.description) throw new Error('No metadata');
+
+      // Claim the post
+      await supabase.from('curated_posts')
+        .update({ status: 'uploading' })
+        .eq('id', post.id)
+        .eq('status', 'metadata_ready');
+
+      const localPath = await ensureLocalFile(readyPost.video_path);
+      log.push(`[publisher] Video ready at ${localPath}`);
+
+      const ytTitle = readyPost.title.includes('#Shorts')
+        ? readyPost.title
+        : `${readyPost.title} #Shorts`.slice(0, 100);
+
+      const hashtagStr = (readyPost.hashtags || []).map((h: string) => `#${h}`).join(' ');
+      const fullDesc = `${readyPost.description}\n\n${hashtagStr}\n\nOriginal: ${readyPost.ig_permalink}\n🌊 Discover more at gwdf.pro`;
+
+      log.push(`[publisher] Uploading to YouTube: "${ytTitle}"`);
+      const ytVideoId = await uploadToYouTube(localPath, ytTitle, fullDesc, readyPost.hashtags || []);
+
+      await supabase.from('curated_posts')
+        .update({
+          youtube_video_id: ytVideoId,
+          status: 'posted',
+          error_message: null,
+        })
+        .eq('id', post.id);
+
+      cleanup(localPath);
+
+      const ytUrl = `https://youtube.com/shorts/${ytVideoId}`;
+      log.push(`[publisher] ✓ SUCCESS! YouTube Short: ${ytUrl}`);
+
+      return res.json({
+        ok: true,
+        post_id: post.id,
+        youtube_video_id: ytVideoId,
+        youtube_url: ytUrl,
+        log,
+      });
+    } catch (err: any) {
+      log.push(`[publisher] FAILED: ${err.message}`);
+      await supabase.from('curated_posts')
+        .update({ status: 'failed', error_message: err.message, failed_at_stage: 'publisher' })
+        .eq('id', post.id);
+      return res.json({ ok: false, post_id: post.id, failed_at: 'publisher', error: err.message, log });
+    }
+  } catch (err: any) {
+    log.push(`ERROR: ${err.message}`);
+    res.status(500).json({ ok: false, error: err.message, log });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, async () => {
   console.log(`Flow Agent Swarm v3 listening on port ${PORT}`);

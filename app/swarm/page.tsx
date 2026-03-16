@@ -992,6 +992,18 @@ export default function SwarmDashboard() {
               <Smartphone className="w-5 h-5" />
               iOS
             </a>
+            <button onClick={async () => { try { const r = await fetch('/api/swarm/push-pipeline', { method: 'POST' }); const d = await r.json(); alert(d.ok ? `SUCCESS! ${d.youtube_url}\n\n${(d.log||[]).join('\n')}` : `FAILED: ${d.error || d.failed_at}\n\n${(d.log||[]).join('\n')}`); fetchData(); } catch { alert('Worker unreachable'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(0,255,0,0.15)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,255,0,0.5)', color: '#00FF00', textShadow: '0 0 8px #00FF0080' }}>
+              <RefreshCw className="w-5 h-5" />
+              PUSH
+            </button>
+            <button onClick={async () => { try { const r = await fetch('/api/swarm/test-youtube', { method: 'POST' }); const d = await r.json(); alert(d.ok ? `YouTube OK! Channel: ${d.channel}` : `YouTube BROKEN: [${d.stage}] ${d.error}`); } catch { alert('Worker unreachable'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(255,0,0,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,0,0,0.3)', color: '#FF4444', textShadow: '0 0 6px #FF444460' }}>
+              <RefreshCw className="w-5 h-5" />
+              YT AUTH
+            </button>
             <button onClick={async () => { try { const r = await fetch('/api/swarm/retry-failed', { method: 'POST' }); const d = await r.json(); alert(`Retried ${d.retried || 0} failed posts`); fetchData(); } catch { alert('Worker unreachable'); } }}
               className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
               style={{ background: 'rgba(255,100,0,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,100,0,0.3)', color: '#FF6400', textShadow: '0 0 6px #FF640060' }}>
