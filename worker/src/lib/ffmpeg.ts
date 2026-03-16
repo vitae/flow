@@ -5,6 +5,7 @@ import os from 'os';
 import { getSupabase } from '../shared/supabase';
 
 const TMP_DIR = path.join(os.tmpdir(), 'flow-curation');
+const MAX_UPLOAD_SIZE_MB = 50;
 
 export function ensureTmpDir() {
   if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
@@ -178,7 +179,7 @@ export async function ensureVertical(inputPath: string): Promise<string> {
     ffmpeg(inputPath)
       .videoFilter(`crop=${cropW}:${height}:${cropX}:0`)
       .videoCodec('libx264')
-      .outputOptions(['-preset', 'ultrafast', '-crf', '23', '-threads', '1', '-max_muxing_queue_size', '512'])
+      .outputOptions(['-preset', 'fast', '-crf', '28', '-threads', '1', '-max_muxing_queue_size', '512'])
       .noAudio()
       .output(outputPath)
       .on('end', () => resolve(outputPath))
@@ -208,7 +209,7 @@ export async function ensureShortsResolution(inputPath: string): Promise<string>
     ffmpeg(inputPath)
       .videoFilter('scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black')
       .videoCodec('libx264')
-      .outputOptions(['-preset', 'ultrafast', '-crf', '23', '-threads', '1', '-max_muxing_queue_size', '512'])
+      .outputOptions(['-preset', 'fast', '-crf', '28', '-threads', '1', '-max_muxing_queue_size', '512'])
       .noAudio()
       .output(outputPath)
       .on('end', () => resolve(outputPath))
@@ -240,16 +241,56 @@ export async function trimToShorts(inputPath: string, maxDuration: number = 180)
 }
 
 /**
+ * Re-encodes a video with a constrained bitrate to fit under the size limit.
+ */
+async function compressToFit(inputPath: string, maxSizeMB: number): Promise<string> {
+  const duration = await getVideoDuration(inputPath);
+  // Target bitrate: (maxSize * 8) / duration, with 5% headroom for container overhead
+  const targetBitrateKbps = Math.floor((maxSizeMB * 0.95 * 8 * 1024) / duration);
+  const ext = path.extname(inputPath);
+  const outputPath = inputPath.replace(ext, '_compressed.mp4');
+
+  console.log(`[compress] Re-encoding to fit ${maxSizeMB}MB: ${targetBitrateKbps}kbps for ${duration.toFixed(1)}s`);
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .videoCodec('libx264')
+      .outputOptions([
+        '-preset', 'fast',
+        '-b:v', `${targetBitrateKbps}k`,
+        '-maxrate', `${Math.floor(targetBitrateKbps * 1.2)}k`,
+        '-bufsize', `${Math.floor(targetBitrateKbps * 2)}k`,
+        '-threads', '1',
+        '-max_muxing_queue_size', '512',
+      ])
+      .noAudio()
+      .output(outputPath)
+      .on('end', () => resolve(outputPath))
+      .on('error', reject)
+      .run();
+  });
+}
+
+/**
  * Uploads a local file back to Supabase Storage so it survives worker restarts.
- * Uses streaming for files > 50MB to avoid memory issues.
+ * Re-encodes the video if it exceeds the 50MB upload limit.
  */
 export async function uploadToStorage(localPath: string, storagePath: string): Promise<string> {
   const supabase = getSupabase();
-  const stat = fs.statSync(localPath);
-  const sizeMB = (stat.size / 1024 / 1024).toFixed(1);
+  let filePath = localPath;
+  let stat = fs.statSync(filePath);
+  let sizeMB = stat.size / 1024 / 1024;
 
-  // Read file as buffer (videos are typically < 100MB after processing)
-  const buffer = fs.readFileSync(localPath);
+  // Compress if over the limit
+  if (sizeMB > MAX_UPLOAD_SIZE_MB) {
+    console.log(`[storage] File is ${sizeMB.toFixed(1)}MB (>${MAX_UPLOAD_SIZE_MB}MB), compressing...`);
+    filePath = await compressToFit(filePath, MAX_UPLOAD_SIZE_MB);
+    stat = fs.statSync(filePath);
+    sizeMB = stat.size / 1024 / 1024;
+    console.log(`[storage] Compressed to ${sizeMB.toFixed(1)}MB`);
+  }
+
+  const buffer = fs.readFileSync(filePath);
 
   // Try upload first, fall back to update if file already exists
   const { error } = await supabase.storage
@@ -257,21 +298,25 @@ export async function uploadToStorage(localPath: string, storagePath: string): P
     .upload(storagePath, buffer, { contentType: 'video/mp4', upsert: true });
 
   if (error) {
-    // "already exists" or "Duplicate" → try update instead (some Supabase versions ignore upsert)
     if (error.message?.includes('already exists') || error.message?.includes('Duplicate') || (error as any).statusCode === '409') {
       console.log(`[storage] File exists, updating: ${storagePath}`);
       const { error: updateErr } = await supabase.storage
         .from('videos')
         .update(storagePath, buffer, { contentType: 'video/mp4', upsert: true });
       if (updateErr) {
-        throw new Error(`Storage update failed (${sizeMB}MB): ${updateErr.message} [statusCode=${(updateErr as any).statusCode}]`);
+        throw new Error(`Storage update failed (${sizeMB.toFixed(1)}MB): ${updateErr.message} [statusCode=${(updateErr as any).statusCode}]`);
       }
     } else {
-      throw new Error(`Storage upload failed (${sizeMB}MB): ${error.message} [statusCode=${(error as any).statusCode}]`);
+      throw new Error(`Storage upload failed (${sizeMB.toFixed(1)}MB): ${error.message} [statusCode=${(error as any).statusCode}]`);
     }
   }
 
-  console.log(`[storage] Uploaded ${localPath} → ${storagePath} (${sizeMB}MB)`);
+  // Clean up compressed temp file
+  if (filePath !== localPath) {
+    try { fs.unlinkSync(filePath); } catch {}
+  }
+
+  console.log(`[storage] Uploaded ${localPath} → ${storagePath} (${sizeMB.toFixed(1)}MB)`);
   return storagePath;
 }
 
