@@ -998,6 +998,18 @@ export default function SwarmDashboard() {
               <RefreshCw className="w-5 h-5" />
               PUSH
             </button>
+            <button onClick={async () => { try { const c = prompt('How many videos? (1-10)', '5'); if (!c) return; alert('BURST MODE: Scouting + processing ' + c + ' videos. This will take a few minutes...'); const r = await fetch('/api/swarm/burst', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ count: parseInt(c) }) }); const d = await r.json(); alert(d.ok ? `BURST COMPLETE!\n${d.summary}\n\n${(d.log||[]).slice(-10).join('\n')}` : `BURST FAILED: ${d.error}\n\n${(d.log||[]).join('\n')}`); fetchData(); } catch { alert('Worker unreachable'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105 animate-pulse"
+              style={{ background: 'rgba(255,200,0,0.2)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,200,0,0.6)', color: '#FFC800', textShadow: '0 0 10px #FFC80090' }}>
+              <Zap className="w-5 h-5" />
+              BURST
+            </button>
+            <button onClick={async () => { try { const igUrl = prompt('Paste an Instagram Reel URL to test the full pipeline:', 'https://www.instagram.com/reel/...'); if (!igUrl || !igUrl.includes('instagram.com')) return; alert('Testing full pipeline with this reel... This takes 1-2 minutes.'); const r = await fetch('/api/swarm/test-single', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: igUrl }) }); const d = await r.json(); alert(d.ok ? `SUCCESS! YouTube Short: ${d.youtube_url}\n\n${(d.log||[]).join('\n')}` : `FAILED: ${d.error}\n\n${(d.log||[]).join('\n')}`); fetchData(); } catch { alert('Worker unreachable'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(0,200,255,0.15)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,200,255,0.5)', color: '#00C8FF', textShadow: '0 0 8px #00C8FF80' }}>
+              <ArrowRight className="w-5 h-5" />
+              TEST
+            </button>
             <button onClick={async () => { try { const r = await fetch('/api/swarm/test-youtube', { method: 'POST' }); const d = await r.json(); alert(d.ok ? `YouTube OK! Channel: ${d.channel}` : `YouTube BROKEN: [${d.stage}] ${d.error}`); } catch { alert('Worker unreachable'); } }}
               className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
               style={{ background: 'rgba(255,0,0,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,0,0,0.3)', color: '#FF4444', textShadow: '0 0 6px #FF444460' }}>
@@ -1009,6 +1021,12 @@ export default function SwarmDashboard() {
               style={{ background: 'rgba(255,100,0,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,100,0,0.3)', color: '#FF6400', textShadow: '0 0 6px #FF640060' }}>
               <RefreshCw className="w-5 h-5" />
               RETRY
+            </button>
+            <button onClick={async () => { try { const raw = prompt('Paste YouTube Studio cookies (raw from browser):'); if (!raw) return; const r = await fetch('/api/swarm/store-cookies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw }) }); const d = await r.json(); alert(d.ok ? `Stored ${d.parsed} cookies!` : `Failed: ${d.error}`); } catch { alert('Failed to store cookies'); } }}
+              className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"
+              style={{ background: 'rgba(200,100,255,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(200,100,255,0.3)', color: '#C864FF', textShadow: '0 0 6px #C864FF60' }}>
+              <Terminal className="w-5 h-5" />
+              COOKIES
             </button>
             <button onClick={async () => { try { const r = await fetch('/api/swarm/diagnose'); const d = await r.json(); alert(JSON.stringify(d.checks || d, null, 2)); } catch { alert('Worker unreachable'); } }}
               className="flex items-center gap-2 font-pixel text-xs px-5 py-3 rounded-xl transition-all hover:scale-105"

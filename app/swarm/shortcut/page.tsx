@@ -126,16 +126,16 @@ export default function ShortcutSetupPage() {
             Upload Videos From Your Phone
           </h1>
           <p className="text-white/60 text-lg max-w-xl mx-auto">
-            Download any video on your phone, share it with this shortcut, and it automatically uploads to your Flow AI pipeline.
+            Share a video URL from Safari or a video file — the shortcut auto-detects and feeds it into your YouTube Shorts pipeline.
           </p>
         </div>
 
         {/* How it works */}
         <div className="grid grid-cols-3 gap-4 text-center">
           {[
-            { emoji: '📥', label: 'Download Video' },
+            { emoji: '🧭', label: 'Find in Safari' },
             { emoji: '📤', label: 'Share → Shortcut' },
-            { emoji: '🤖', label: 'Agents Process It' },
+            { emoji: '🤖', label: 'Auto YouTube Shorts' },
           ].map((step, i) => (
             <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10">
               <div className="text-3xl mb-2">{step.emoji}</div>
@@ -304,17 +304,32 @@ export default function ShortcutSetupPage() {
           </Step>
 
           <Step n={4} title="Use It!">
-            <p>Now whenever you download a video:</p>
-            <ol className="list-decimal list-inside space-y-2 text-base">
-              <li>Download the video from Instagram, TikTok, etc.</li>
-              <li>Tap the <strong>Share</strong> button</li>
-              <li>Select <strong>&quot;Upload to Flow&quot;</strong> from your shortcuts</li>
-              <li>The video uploads in the background and enters the agent pipeline automatically</li>
-            </ol>
-            <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg p-4 mt-4">
+            <p>Two ways to use it — the shortcut auto-detects which one you&apos;re doing:</p>
+
+            <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-lg p-4 space-y-2">
+              <div className="text-cyan-400 font-bold">Option A: Share a URL from Safari</div>
+              <ol className="list-decimal list-inside space-y-1 text-sm">
+                <li>Find a video in <strong>Safari</strong> (Instagram, TikTok, etc.)</li>
+                <li>Tap the <strong>Share</strong> button in Safari</li>
+                <li>Select <strong>&quot;Upload to Flow&quot;</strong></li>
+                <li>The server downloads the video and queues it automatically</li>
+              </ol>
+            </div>
+
+            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4 space-y-2">
+              <div className="text-purple-400 font-bold">Option B: Share a video file</div>
+              <ol className="list-decimal list-inside space-y-1 text-sm">
+                <li>Save a video to your Camera Roll or Files</li>
+                <li>Tap <strong>Share</strong> on the video</li>
+                <li>Select <strong>&quot;Upload to Flow&quot;</strong></li>
+                <li>The video uploads directly to the pipeline</li>
+              </ol>
+            </div>
+
+            <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg p-4 mt-2">
               <p className="text-sm">
-                The video will appear in your Swarm dashboard with status <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">downloaded</code> —
-                the agents will automatically process it through the pipeline (audio, editing, copywriting, publishing).
+                Either way, the video enters the pipeline as <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">downloaded</code> —
+                agents handle audio stripping, 9:16 formatting, 1080x1920 scaling, ≤59s trimming, viral titles, and YouTube Shorts upload automatically.
               </p>
             </div>
           </Step>
@@ -364,7 +379,7 @@ export default function ShortcutSetupPage() {
           <ol className="list-decimal list-inside space-y-2 text-sm text-white/80">
             <li>Open Shortcuts → <strong>Automation</strong> tab</li>
             <li>Tap <strong>+</strong> → <strong>Create Personal Automation</strong></li>
-            <li>Select <strong>&quot;App&quot;</strong> → choose your video downloader app (e.g., Safari, Instagram)</li>
+            <li>Select <strong>&quot;App&quot;</strong> → choose <strong>Safari</strong></li>
             <li>Trigger: <strong>&quot;Is Closed&quot;</strong></li>
             <li>Action: <strong>Find Photos</strong> → filter by &quot;Last 1 Minute&quot; + &quot;Videos&quot;</li>
             <li>Action: <strong>Run Shortcut</strong> → select &quot;Upload to Flow&quot;</li>

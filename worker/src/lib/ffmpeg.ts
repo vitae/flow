@@ -16,7 +16,7 @@ export function ensureTmpDir() {
  * Returns the local file path.
  */
 export async function ensureLocalFile(storagePath: string): Promise<string> {
-  // Already a local path (from the downloader agent)
+  // Already a local path (from the downloader agent or burst mode)
   if (path.isAbsolute(storagePath) && fs.existsSync(storagePath)) {
     return storagePath;
   }
@@ -30,19 +30,45 @@ export async function ensureLocalFile(storagePath: string): Promise<string> {
     return localPath;
   }
 
-  console.log(`[ensureLocalFile] Downloading from Supabase Storage: ${storagePath}`);
-  const supabase = getSupabase();
-  const { data, error } = await supabase.storage.from('videos').download(storagePath);
-  if (error) throw new Error(`Storage download failed: ${error.message}`);
-
-  const buffer = Buffer.from(await data.arrayBuffer());
-  if (buffer.length < 10000) {
-    throw new Error(`Downloaded file too small (${buffer.length} bytes), likely not a video`);
+  // Also scan /tmp dir for any file matching this post ID (handles filename mismatch
+  // between downloader saving as {ig_media_id}.mp4 and storage path using {uuid}.mp4)
+  const postIdMatch = storagePath.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+  if (postIdMatch) {
+    const files = fs.readdirSync(TMP_DIR);
+    for (const f of files) {
+      if (f.includes(postIdMatch[1]) && f.endsWith('.mp4')) {
+        const found = path.join(TMP_DIR, f);
+        console.log(`[ensureLocalFile] Found matching local file: ${found}`);
+        return found;
+      }
+    }
   }
 
-  fs.writeFileSync(localPath, buffer);
-  console.log(`[ensureLocalFile] Downloaded: ${localPath} (${buffer.length} bytes)`);
-  return localPath;
+  console.log(`[ensureLocalFile] Downloading from Supabase Storage: ${storagePath}`);
+  const supabase = getSupabase();
+
+  // Try the exact path first, then try common path variations
+  const pathsToTry = [storagePath];
+  if (!storagePath.startsWith('uploads/') && !storagePath.startsWith('processed/')) {
+    pathsToTry.push(`uploads/${storagePath}`, `processed/${storagePath}`);
+  }
+
+  let lastError: any;
+  for (const tryPath of pathsToTry) {
+    const { data, error } = await supabase.storage.from('videos').download(tryPath);
+    if (!error && data) {
+      const buffer = Buffer.from(await data.arrayBuffer());
+      if (buffer.length < 10000) {
+        throw new Error(`Downloaded file too small (${buffer.length} bytes), likely not a video`);
+      }
+      fs.writeFileSync(localPath, buffer);
+      console.log(`[ensureLocalFile] Downloaded: ${localPath} (${buffer.length} bytes)`);
+      return localPath;
+    }
+    lastError = error;
+  }
+
+  throw new Error(`Storage download failed: ${lastError?.message || 'object not found'}. Paths tried: ${pathsToTry.join(', ')}`);
 }
 
 export async function downloadFile(url: string, filename: string): Promise<string> {
@@ -148,7 +174,7 @@ export async function ensureVertical(inputPath: string): Promise<string> {
     ffmpeg(inputPath)
       .videoFilter(`crop=${cropW}:${height}:${cropX}:0`)
       .videoCodec('libx264')
-      .outputOptions(['-preset', 'fast', '-crf', '23'])
+      .outputOptions(['-preset', 'ultrafast', '-crf', '23', '-threads', '1', '-max_muxing_queue_size', '512'])
       .noAudio()
       .output(outputPath)
       .on('end', () => resolve(outputPath))
@@ -178,7 +204,7 @@ export async function ensureShortsResolution(inputPath: string): Promise<string>
     ffmpeg(inputPath)
       .videoFilter('scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black')
       .videoCodec('libx264')
-      .outputOptions(['-preset', 'fast', '-crf', '23'])
+      .outputOptions(['-preset', 'ultrafast', '-crf', '23', '-threads', '1', '-max_muxing_queue_size', '512'])
       .noAudio()
       .output(outputPath)
       .on('end', () => resolve(outputPath))
