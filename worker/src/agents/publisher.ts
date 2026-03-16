@@ -49,6 +49,24 @@ function isTransientError(err: any): boolean {
 }
 
 async function handlePost(post: CuratedPost) {
+  if (!post.video_path || !post.title || !post.description) {
+    // Re-fetch from DB in case fields weren't populated in the original select
+    console.warn(`[publisher] Missing fields for ${post.id}, re-fetching from DB...`);
+    const { data: fresh } = await getSupabase()
+      .from('curated_posts')
+      .select('video_path, title, description, hashtags')
+      .eq('id', post.id)
+      .single();
+
+    if (fresh) {
+      if (!post.video_path && fresh.video_path) post.video_path = fresh.video_path;
+      if (!post.title && fresh.title) post.title = fresh.title;
+      if (!post.description && fresh.description) post.description = fresh.description;
+      if (fresh.hashtags) post.hashtags = fresh.hashtags;
+      console.log(`[publisher] Recovered fields from DB`);
+    }
+  }
+
   if (!post.video_path) throw new Error('No video_path set');
   if (!post.title || !post.description) throw new Error('No metadata set');
 

@@ -1,12 +1,28 @@
 import { createAgentLoop } from '../shared/agent-loop';
 import { CuratedPost } from '../shared/types';
 import { trimToShorts, getVideoDuration, ensureVertical, ensureLocalFile, uploadToStorage, ensureShortsResolution } from '../lib/ffmpeg';
+import { getSupabase } from '../shared/supabase';
 
 const MIN_DURATION = 3; // YouTube Shorts minimum
 const MAX_DURATION = 59; // YouTube Shorts maximum for API uploads (1s buffer)
 
 async function handlePost(post: CuratedPost) {
-  if (!post.video_path) throw new Error('No video_path set');
+  if (!post.video_path) {
+    // Re-fetch from DB in case the select didn't include the updated video_path
+    console.warn(`[editor] video_path is null for ${post.id}, re-fetching from DB...`);
+    const { data: fresh } = await getSupabase()
+      .from('curated_posts')
+      .select('video_path')
+      .eq('id', post.id)
+      .single();
+
+    if (fresh?.video_path) {
+      post.video_path = fresh.video_path;
+      console.log(`[editor] Recovered video_path: ${post.video_path}`);
+    } else {
+      throw new Error(`No video_path set (DB also returned null). Post ${post.id} may not have been processed by audio_engineer.`);
+    }
+  }
 
   // Ensure the video is available locally
   const localPath = await ensureLocalFile(post.video_path);
