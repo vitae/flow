@@ -3,7 +3,7 @@ import { getSupabase } from '../shared/supabase';
 import { getStoredCookies } from './cookie-refresher';
 
 const POLL_INTERVAL_MS = 30 * 1000;
-const MAX_RETRIES = 2; // Retry a failed video once before giving up
+const BACKOFF_INTERVAL_MS = 5 * 60 * 1000; // Wait 5 min between retry rounds
 const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000;
 
 const MUSIC_QUERIES = [
@@ -170,86 +170,95 @@ async function addMusicToShort(videoId: string): Promise<string> {
 
     await page.waitForTimeout(3000);
 
-    // Step 4: Search for trending music in the audio library
-    const query = MUSIC_QUERIES[Math.floor(Math.random() * MUSIC_QUERIES.length)];
-    console.log(`[music_adder] Searching for "${query}"`);
-
-    const searchInput = await findFirst(page, [
-      'input[placeholder*="Search" i]',
-      'input[aria-label*="Search" i]',
-      '#search-input',
-      'ytcp-text-input input',
-      'input[type="text"]',
-    ]);
-
-    if (searchInput) {
-      await searchInput.fill(query);
-      await searchInput.press('Enter');
-      await page.waitForTimeout(4000);
-
-      // Try to sort by popularity
-      const sortBtn = await findFirst(page, [
-        'button:has-text("Sort")',
-        '[aria-label*="Sort" i]',
-        'ytcp-dropdown-trigger:has-text("Sort")',
-      ], 3000);
-      if (sortBtn) {
-        await sortBtn.click();
-        await page.waitForTimeout(1000);
-        const popOption = await findFirst(page, [
-          'text=/Popular/i',
-          'text=/Most used/i',
-          'text=/Trending/i',
-          'ytcp-text-menu-item:has-text("Popular")',
-        ], 2000);
-        if (popOption) {
-          await popOption.click();
-          await page.waitForTimeout(2000);
-          console.log('[music_adder] Sorted by popularity');
-        }
-      }
-    } else {
-      console.log('[music_adder] No search input found — browsing default tracks');
-    }
-
-    // Step 5: Find and click "Add" on a track (skip already-used tracks)
+    // Step 4: Search for trending music — try ALL queries until one works
     const usedTracks = await getUsedTrackNames();
     console.log(`[music_adder] ${usedTracks.size} tracks already used, will skip duplicates`);
 
-    // Locate all "Add" buttons in the audio library results
-    const addButtons = await page.locator(
-      'button:has-text("Add"), ' +
-      'ytcp-button:has-text("Add"), ' +
-      '[aria-label*="Add" i]:is(button, ytcp-button, ytcp-icon-button)'
-    ).all();
-
+    // Shuffle queries so we don't always try the same order
+    const shuffledQueries = [...MUSIC_QUERIES].sort(() => Math.random() - 0.5);
     let found = false;
-    for (const btn of addButtons) {
-      if (!(await btn.isVisible().catch(() => false))) continue;
 
-      // Get the track name from the parent row
-      const trackRow = await btn.locator('xpath=ancestor::*[contains(@class, "row") or contains(@class, "track") or contains(@class, "item") or self::tr or self::ytcp-ve]')
-        .first().textContent().catch(() => null);
-      // Fallback: get text from 2 levels up
-      const trackText = trackRow || await btn.locator('..').locator('..').textContent().catch(() => '') || '';
-      const trackName = trackText.replace(/Add|Play|Preview/gi, '').trim().substring(0, 100);
+    for (const query of shuffledQueries) {
+      console.log(`[music_adder] Searching for "${query}"...`);
 
-      if (trackName && usedTracks.has(trackName.toLowerCase())) {
-        console.log(`[music_adder] Skipping already-used: "${trackName}"`);
-        continue;
+      const searchInput = await findFirst(page, [
+        'input[placeholder*="Search" i]',
+        'input[aria-label*="Search" i]',
+        '#search-input',
+        'ytcp-text-input input',
+        'input[type="text"]',
+      ]);
+
+      if (searchInput) {
+        await searchInput.fill('');
+        await page.waitForTimeout(300);
+        await searchInput.fill(query);
+        await searchInput.press('Enter');
+        await page.waitForTimeout(4000);
+
+        // Try to sort by popularity (only on first query — setting persists)
+        if (query === shuffledQueries[0]) {
+          const sortBtn = await findFirst(page, [
+            'button:has-text("Sort")',
+            '[aria-label*="Sort" i]',
+            'ytcp-dropdown-trigger:has-text("Sort")',
+          ], 3000);
+          if (sortBtn) {
+            await sortBtn.click();
+            await page.waitForTimeout(1000);
+            const popOption = await findFirst(page, [
+              'text=/Popular/i',
+              'text=/Most used/i',
+              'text=/Trending/i',
+              'ytcp-text-menu-item:has-text("Popular")',
+            ], 2000);
+            if (popOption) {
+              await popOption.click();
+              await page.waitForTimeout(2000);
+              console.log('[music_adder] Sorted by popularity');
+            }
+          }
+        }
+      } else {
+        console.log('[music_adder] No search input found — browsing default tracks');
       }
 
-      addedTrack = trackName || query;
-      await btn.click();
-      console.log(`[music_adder] Added track: "${addedTrack}"`);
-      await page.waitForTimeout(3000);
-      found = true;
-      break;
+      // Find and click "Add" on a track (skip already-used tracks)
+      const addButtons = await page.locator(
+        'button:has-text("Add"), ' +
+        'ytcp-button:has-text("Add"), ' +
+        '[aria-label*="Add" i]:is(button, ytcp-button, ytcp-icon-button)'
+      ).all();
+
+      for (const btn of addButtons) {
+        if (!(await btn.isVisible().catch(() => false))) continue;
+
+        // Get the track name from the parent row
+        const trackRow = await btn.locator('xpath=ancestor::*[contains(@class, "row") or contains(@class, "track") or contains(@class, "item") or self::tr or self::ytcp-ve]')
+          .first().textContent().catch(() => null);
+        const trackText = trackRow || await btn.locator('..').locator('..').textContent().catch(() => '') || '';
+        const trackName = trackText.replace(/Add|Play|Preview/gi, '').trim().substring(0, 100);
+
+        if (trackName && usedTracks.has(trackName.toLowerCase())) {
+          console.log(`[music_adder] Skipping already-used: "${trackName}"`);
+          continue;
+        }
+
+        addedTrack = trackName || query;
+        await btn.click();
+        console.log(`[music_adder] Added track: "${addedTrack}"`);
+        await page.waitForTimeout(3000);
+        found = true;
+        break;
+      }
+
+      if (found) break;
+      console.log(`[music_adder] No unused tracks for "${query}" (${addButtons.length} buttons found), trying next query...`);
     }
 
     if (!found) {
       await page.screenshot({ path: `/tmp/flow-curation/music-adder-no-tracks-${videoId}.png` }).catch(() => {});
-      throw new Error(`No unused tracks found for query "${query}" — ${addButtons.length} add buttons found, all either used or invisible`);
+      throw new Error(`No unused tracks found after trying all ${shuffledQueries.length} queries`);
     }
 
     // Step 6: Save changes
@@ -317,24 +326,26 @@ export function startMusicAdder() {
 
     const post = posts[0];
 
-    // Count retries from error_message prefix to avoid needing a new DB column
-    const retryCount = (post.error_message?.match(/^music_adder_retry:(\d+)/)?.[1] || 0) as number;
-    if (retryCount >= MAX_RETRIES) {
-      console.log(`[music_adder] Skipping ${post.id} — failed ${retryCount} times, marking as failed`);
-      await supabase
-        .from('curated_posts')
-        .update({
-          youtube_audio_title: 'failed',
-          status: 'music_added',
-          error_message: `music_adder: gave up after ${retryCount} retries`,
-        })
-        .eq('id', post.id);
-      return 0;
+    // Count retries from error_message prefix
+    const retryCount = Number(post.error_message?.match(/^music_adder_retry:(\d+)/)?.[1] || 0);
+
+    // If we failed recently, back off before retrying (5 min between rounds)
+    if (retryCount > 0 && post.error_message) {
+      const lastAttemptMatch = post.error_message.match(/at:(\d+)/);
+      if (lastAttemptMatch) {
+        const lastAttempt = Number(lastAttemptMatch[1]);
+        const elapsed = Date.now() - lastAttempt;
+        // Exponential backoff: 5min, 10min, 20min, capped at 30min
+        const backoff = Math.min(BACKOFF_INTERVAL_MS * Math.pow(2, retryCount - 1), 30 * 60 * 1000);
+        if (elapsed < backoff) {
+          return 0; // Not time yet, skip silently
+        }
+      }
     }
 
     try {
-      console.log(`[music_adder] Adding music to YT ${post.youtube_video_id} ("${post.title}") [attempt ${retryCount + 1}/${MAX_RETRIES + 1}]`);
-      const trackName = await addMusicToShort(post.youtube_video_id);
+      console.log(`[music_adder] Adding music to YT ${post.youtube_video_id} ("${post.title}") [attempt ${retryCount + 1}]`);
+      const trackName = await addMusicToShort(post.youtube_video_id!);
 
       await supabase
         .from('curated_posts')
@@ -348,18 +359,18 @@ export function startMusicAdder() {
       console.log(`[music_adder] ✓ ${post.id} → music_added (YT: "${trackName}")`);
       return 1;
     } catch (err: any) {
-      console.error(`[music_adder] ✗ ${post.id}:`, err.message);
+      console.error(`[music_adder] ✗ ${post.id} (attempt ${retryCount + 1}):`, err.message);
       await supabase
         .from('curated_posts')
         .update({
-          error_message: `music_adder_retry:${Number(retryCount) + 1} ${err.message}`,
+          error_message: `music_adder_retry:${retryCount + 1} at:${Date.now()} ${err.message}`,
         })
         .eq('id', post.id);
       return 0;
     }
   }
 
-  console.log(`[music_adder] Agent started — polling every ${POLL_INTERVAL_MS / 1000}s, max ${MAX_RETRIES + 1} attempts per video`);
+  console.log(`[music_adder] Agent started — polling every ${POLL_INTERVAL_MS / 1000}s, never gives up (exponential backoff between retries)`);
   tick().catch(err => console.error(`[music_adder] Initial tick error:`, err.message));
   setInterval(async () => {
     try { await tick(); } catch (err: any) {
