@@ -86,6 +86,8 @@ async function handlePost(post: CuratedPost) {
 
   return {
     youtube_video_id: ytVideoId,
+    ig_reels_id: igMediaId,
+    fb_reels_id: fbVideoId,
     _igError: igError,
     _fbError: fbError,
   };
