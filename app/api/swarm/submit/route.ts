@@ -37,6 +37,11 @@ function isAuthorized(req: NextRequest): boolean {
   return token === apiKey;
 }
 
+// GET: health-check / warm-up for iOS Shortcuts
+export async function GET() {
+  return NextResponse.json({ status: 'ok' });
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!isAuthorized(req)) {

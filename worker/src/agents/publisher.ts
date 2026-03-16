@@ -1,7 +1,7 @@
 import { CuratedPost } from '../shared/types';
 import { uploadToYouTube } from '../lib/youtube';
 import { publishToInstagramReels, publishToFacebookReels } from '../lib/meta-reels';
-import { cleanup } from '../lib/ffmpeg';
+import { cleanup, ensureLocalFile } from '../lib/ffmpeg';
 import { getSupabase } from '../shared/supabase';
 import { logActivity } from '../shared/activity-log';
 import { sendPostNotification } from '../lib/email';
@@ -23,13 +23,21 @@ async function handlePost(post: CuratedPost) {
   if (!post.video_path) throw new Error('No video_path set');
   if (!post.title || !post.description) throw new Error('No metadata set');
 
+  // Ensure the video file is available locally (handles worker restarts)
+  const localVideoPath = await ensureLocalFile(post.video_path);
   console.log(`[publisher] Uploading "${post.title}"`);
+
+  // Append #Shorts to title for reliable YouTube Shorts classification
+  const ytTitle = post.title.includes('#Shorts')
+    ? post.title
+    : `${post.title} #Shorts`.slice(0, 100);
+
   const hashtagStr = (post.hashtags || []).map(h => `#${h}`).join(' ');
   const fullDescription = `${post.description}\n\n${hashtagStr}\n\nOriginal: ${post.ig_permalink}\n🌊 Discover more at gwdf.pro`;
 
   const ytVideoId = await uploadToYouTube(
-    post.video_path,
-    post.title,
+    localVideoPath,
+    ytTitle,
     fullDescription,
     post.hashtags || [],
   );
@@ -40,7 +48,7 @@ async function handlePost(post: CuratedPost) {
   let igError: string | null = null;
   try {
     const igCaption = `${post.title}\n\n${hashtagStr}\n\nOriginal: ${post.ig_permalink}\n🌊 gwdf.pro`;
-    igMediaId = await publishToInstagramReels(post.video_path, igCaption);
+    igMediaId = await publishToInstagramReels(localVideoPath, igCaption);
     console.log(`[publisher] Instagram Reel posted: ${igMediaId}`);
   } catch (err: any) {
     igError = err.message;
@@ -51,7 +59,7 @@ async function handlePost(post: CuratedPost) {
   let fbVideoId: string | null = null;
   let fbError: string | null = null;
   try {
-    fbVideoId = await publishToFacebookReels(post.video_path, fullDescription);
+    fbVideoId = await publishToFacebookReels(localVideoPath, fullDescription);
     console.log(`[publisher] Facebook Reel posted: ${fbVideoId}`);
   } catch (err: any) {
     fbError = err.message;
@@ -59,7 +67,7 @@ async function handlePost(post: CuratedPost) {
   }
 
   // Clean up after all uploads are done
-  cleanup(post.video_path);
+  cleanup(localVideoPath);
 
   return {
     youtube_video_id: ytVideoId,
