@@ -16,7 +16,7 @@ const VIRAL_HASHTAGS = [
 ];
 // 6 hashtags/day — more variety to keep the pipeline fed. IG limit is 30 unique
 // hashtags per 7-day window; with 30 total hashtags cycling over ~5 days this stays under.
-const HASHTAGS_PER_DAY = 6;
+const HASHTAGS_PER_DAY = 10; // OVERDRIVE: more hashtags per day
 
 function appsecretProof(token: string): string {
   return crypto.createHmac('sha256', process.env.META_APP_SECRET!).update(token).digest('hex');

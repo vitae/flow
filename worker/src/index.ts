@@ -778,11 +778,18 @@ app.post('/test-single', auth, async (req: any, res: any) => {
 
     const videoPath = await downloadFile(videoUrl, `test_${post.id}.mp4`);
     const duration = await getVideoDuration(videoPath);
-    log.push(`[download] OK: ${width}x${height}, ${duration.toFixed(1)}s`);
+    const fs = await import('fs');
+    const rawSizeMB = fs.statSync(videoPath).size / 1024 / 1024;
+    log.push(`[download] OK: ${width}x${height}, ${duration.toFixed(1)}s, ${rawSizeMB.toFixed(1)}MB`);
 
     if (duration < 3 || duration > 300) {
       await supabase.from('curated_posts').update({ status: 'failed', error_message: `Duration ${duration.toFixed(1)}s out of range`, failed_at_stage: 'downloader' }).eq('id', post.id);
       return res.json({ ok: false, error: `Duration ${duration.toFixed(1)}s out of 3-300s range`, post_id: post.id, log });
+    }
+
+    if (rawSizeMB > 200) {
+      await supabase.from('curated_posts').update({ status: 'failed', error_message: `File too large (${rawSizeMB.toFixed(1)}MB)`, failed_at_stage: 'downloader' }).eq('id', post.id);
+      return res.json({ ok: false, error: `File too large (${rawSizeMB.toFixed(1)}MB > 200MB), would compress poorly`, post_id: post.id, log });
     }
 
     await supabase.from('curated_posts').update({ status: 'downloaded', video_duration: duration }).eq('id', post.id);
@@ -960,10 +967,15 @@ app.post('/burst', auth, async (req: any, res: any) => {
         tempFiles.push(videoPath);
 
         const duration = await getVideoDuration(videoPath);
-        send({ phase: 'download', video: i + 1, message: `Downloaded: ${width}x${height}, ${duration.toFixed(1)}s` });
+        const rawSizeMB = require('fs').statSync(videoPath).size / 1024 / 1024;
+        send({ phase: 'download', video: i + 1, message: `Downloaded: ${width}x${height}, ${duration.toFixed(1)}s, ${rawSizeMB.toFixed(1)}MB` });
 
         if (duration < 3 || duration > 300) {
           throw new Error(`Duration ${duration.toFixed(1)}s out of range (3-300s)`);
+        }
+
+        if (rawSizeMB > 200) {
+          throw new Error(`File too large (${rawSizeMB.toFixed(1)}MB > 200MB), would compress poorly`);
         }
 
         await supabase.from('curated_posts').update({ status: 'downloaded', video_duration: duration }).eq('id', post.id);
