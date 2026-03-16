@@ -4,7 +4,7 @@ import { downloadFile, getVideoDuration, uploadToStorage } from '../lib/ffmpeg';
 import { getVideoUrl } from '../lib/instagram';
 
 const MIN_DURATION = 10;
-const MAX_DURATION = 59; // YouTube Shorts maximum for API uploads (1s buffer)
+const MAX_DURATION = 300; // Allow up to 5min — editor will trim to 59s for Shorts
 
 async function handlePost(post: CuratedPost) {
   console.log(`[downloader] Downloading ${post.ig_permalink}`);
