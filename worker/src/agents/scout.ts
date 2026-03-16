@@ -2,7 +2,7 @@ import { getSupabase } from '../shared/supabase';
 import { logActivity } from '../shared/activity-log';
 import { getTodaysHashtags, getIGAccessToken, searchHashtag, IGMedia } from '../lib/instagram';
 
-const SCOUT_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours between hashtag searches (4/day = ~8 API calls/day)
+const SCOUT_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes between hashtag searches
 const MIN_ENGAGEMENT = 50_000;  // Primary: only truly viral (50k+ engagement score)
 const MIN_ENGAGEMENT_FALLBACK = 10_000; // Fallback: still strong (10k+)
 
