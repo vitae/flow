@@ -1,12 +1,11 @@
 import { chromium } from 'playwright';
-import { google } from 'googleapis';
 import { getSupabase } from '../shared/supabase';
 import { logActivity } from '../shared/activity-log';
 
-// Refresh every 45 minutes (keep cookies fresh before they expire)
+// Refresh every 45 minutes — visiting YouTube Studio keeps Google session cookies alive
 const REFRESH_INTERVAL_MS = 45 * 60 * 1000;
 
-interface StoredCookies {
+export interface StoredCookies {
   cookies: Array<{
     name: string;
     value: string;
@@ -18,46 +17,40 @@ interface StoredCookies {
     sameSite: 'Strict' | 'Lax' | 'None';
   }>;
   refreshed_at: string;
+  authenticated: boolean;
 }
 
-async function getOAuth2Client() {
-  const supabase = getSupabase();
-  const { data: connection } = await supabase
-    .from('social_connections')
-    .select('*')
-    .eq('platform', 'youtube')
-    .eq('is_active', true)
-    .limit(1)
-    .single();
+// Google session cookie names that indicate a valid authenticated session
+const SESSION_COOKIE_NAMES = ['SID', 'HSID', 'SSID', 'APISID', 'SAPISID', '__Secure-1PSID', '__Secure-3PSID'];
 
-  if (!connection) throw new Error('No YouTube connection found');
-
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-  );
-  oauth2Client.setCredentials({
-    access_token: connection.access_token,
-    refresh_token: connection.refresh_token,
-  });
-
-  // Always refresh to get a fresh token
-  const { credentials } = await oauth2Client.refreshAccessToken();
-  if (credentials.access_token !== connection.access_token) {
-    await supabase.from('social_connections').update({
-      access_token: credentials.access_token,
-      token_expires_at: credentials.expiry_date
-        ? new Date(credentials.expiry_date).toISOString()
-        : null,
-    }).eq('id', connection.id);
+async function loadBaseCookies(context: any): Promise<number> {
+  // Try stored cookies from DB first (fresher), then fall back to env var
+  const stored = await getStoredCookies();
+  if (stored?.cookies?.length) {
+    await context.addCookies(stored.cookies);
+    console.log(`[cookie-refresher] Loaded ${stored.cookies.length} cookies from DB (stored: ${stored.refreshed_at})`);
+    return stored.cookies.length;
   }
 
-  return { accessToken: credentials.access_token!, connection };
+  const raw = process.env.YOUTUBE_STUDIO_COOKIES;
+  if (raw) {
+    try {
+      const staticCookies: any[] = JSON.parse(raw);
+      await context.addCookies(staticCookies.map(c => ({
+        ...c,
+        domain: c.domain || '.youtube.com',
+        path: c.path || '/',
+      })));
+      console.log(`[cookie-refresher] Loaded ${staticCookies.length} static cookies from env`);
+      return staticCookies.length;
+    } catch {}
+  }
+
+  return 0;
 }
 
 async function refreshCookies(): Promise<StoredCookies> {
   console.log('[cookie-refresher] Starting cookie refresh...');
-  const { accessToken } = await getOAuth2Client();
 
   const browser = await chromium.launch({
     headless: true,
@@ -72,60 +65,52 @@ async function refreshCookies(): Promise<StoredCookies> {
   const page = await context.newPage();
 
   try {
-    // Load static cookies first if available (helps establish initial session)
-    const raw = process.env.YOUTUBE_STUDIO_COOKIES;
-    if (raw) {
-      try {
-        const staticCookies = JSON.parse(raw);
-        await context.addCookies(staticCookies.map((c: any) => ({
-          ...c,
-          domain: c.domain || '.youtube.com',
-          path: c.path || '/',
-        })));
-        console.log(`[cookie-refresher] Loaded ${staticCookies.length} static cookies as base`);
-      } catch {}
+    const loadedCount = await loadBaseCookies(context);
+
+    if (loadedCount === 0) {
+      throw new Error('No base cookies available — set YOUTUBE_STUDIO_COOKIES env var with exported browser cookies');
     }
 
-    // Navigate through OAuth flow to establish Google session
-    const oauthUrl = `https://accounts.google.com/o/oauth2/auth?` +
-      `access_token=${accessToken}` +
-      `&response_type=token` +
-      `&client_id=${process.env.GOOGLE_CLIENT_ID}` +
-      `&redirect_uri=${encodeURIComponent('https://studio.youtube.com')}` +
-      `&scope=${encodeURIComponent('https://www.googleapis.com/auth/youtube')}`;
-
-    console.log('[cookie-refresher] Navigating through OAuth flow...');
-    await page.goto(oauthUrl, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
-    await page.waitForTimeout(3000);
-
-    // Check if we landed on YouTube Studio (authenticated)
-    const url = page.url();
-    if (url.includes('accounts.google.com')) {
-      // Try navigating directly to studio
-      await page.goto('https://studio.youtube.com', { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
-      await page.waitForTimeout(3000);
-    }
+    // Navigate directly to YouTube Studio — the stored cookies should authenticate us
+    console.log('[cookie-refresher] Navigating to YouTube Studio...');
+    await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(5000);
 
     const finalUrl = page.url();
     const authenticated = finalUrl.includes('studio.youtube.com') && !finalUrl.includes('accounts.google.com');
-    console.log(`[cookie-refresher] Final URL: ${finalUrl} (authenticated: ${authenticated})`);
+    console.log(`[cookie-refresher] URL: ${finalUrl} (authenticated: ${authenticated})`);
+
+    if (!authenticated) {
+      // Take screenshot for debugging
+      await page.screenshot({ path: `/tmp/flow-curation/cookie-refresher-auth-fail.png` }).catch(() => {});
+      throw new Error(`Not authenticated — landed on ${finalUrl}. Refresh YOUTUBE_STUDIO_COOKIES env var with fresh browser cookies.`);
+    }
+
+    // Visit a couple pages to ensure all cookies get refreshed
+    await page.goto('https://studio.youtube.com/channel/videos', { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(2000);
 
     // Extract all cookies from the browser context
     const allCookies = await context.cookies();
-    const relevantCookies = allCookies.filter(c =>
+    const relevantCookies = allCookies.filter((c: any) =>
       c.domain.includes('youtube.com') ||
       c.domain.includes('google.com') ||
       c.domain.includes('googleapis.com')
     );
 
-    console.log(`[cookie-refresher] Captured ${relevantCookies.length} cookies (${allCookies.length} total)`);
+    // Verify we have real session cookies, not just tracking cookies
+    const hasSessionCookies = relevantCookies.some((c: any) =>
+      SESSION_COOKIE_NAMES.includes(c.name)
+    );
 
-    if (relevantCookies.length === 0) {
-      throw new Error('No cookies captured — authentication likely failed');
+    console.log(`[cookie-refresher] Captured ${relevantCookies.length} cookies (session cookies present: ${hasSessionCookies})`);
+
+    if (!hasSessionCookies) {
+      throw new Error('Captured cookies but missing session cookies (SID/HSID/etc) — session is not authenticated');
     }
 
     const stored: StoredCookies = {
-      cookies: relevantCookies.map(c => ({
+      cookies: relevantCookies.map((c: any) => ({
         name: c.name,
         value: c.value,
         domain: c.domain,
@@ -136,9 +121,10 @@ async function refreshCookies(): Promise<StoredCookies> {
         sameSite: c.sameSite,
       })),
       refreshed_at: new Date().toISOString(),
+      authenticated,
     };
 
-    // Store cookies in Supabase (using a key-value style in social_connections metadata)
+    // Store cookies in Supabase kv_store
     const supabase = getSupabase();
     await supabase.from('kv_store').upsert({
       key: 'youtube_studio_cookies',
@@ -154,7 +140,6 @@ async function refreshCookies(): Promise<StoredCookies> {
   }
 }
 
-// Export for music-adder to use
 export async function getStoredCookies(): Promise<StoredCookies | null> {
   const supabase = getSupabase();
   const { data } = await supabase
@@ -174,14 +159,13 @@ export function startCookieRefresher() {
     try {
       const result = await refreshCookies();
       console.log(`[cookie-refresher] ✓ Refresh complete — ${result.cookies.length} cookies stored`);
-      await logActivity('cookie_refresher', 'refreshed', { cookies_count: result.cookies.length });
+      await logActivity('cookie_refresher', 'refreshed', { cookies_count: result.cookies.length, authenticated: result.authenticated });
     } catch (err: any) {
       console.error(`[cookie-refresher] ✗ Error:`, err.message);
       await logActivity('cookie_refresher', 'error', { error: err.message });
     }
   }
 
-  // Refresh immediately on startup, then every 45 minutes
   tick();
   setInterval(tick, REFRESH_INTERVAL_MS);
 }
