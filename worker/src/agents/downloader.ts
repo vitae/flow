@@ -3,8 +3,8 @@ import { CuratedPost } from '../shared/types';
 import { downloadFile, getVideoDuration } from '../lib/ffmpeg';
 import { getVideoUrl } from '../lib/instagram';
 
-const MIN_DURATION = 45;
-const MAX_DURATION = 180; // 3 minutes — YouTube Shorts supports up to 3min
+const MIN_DURATION = 10;
+const MAX_DURATION = 180; // 3 minutes
 
 async function handlePost(post: CuratedPost) {
   console.log(`[downloader] Downloading ${post.ig_permalink}`);
@@ -16,7 +16,7 @@ async function handlePost(post: CuratedPost) {
   const duration = await getVideoDuration(videoPath);
   console.log(`[downloader] Downloaded: ${duration.toFixed(1)}s`);
 
-  // Only keep videos between 45-59 seconds for quality Shorts
+  // Only keep videos between 10s-3min
   if (duration < MIN_DURATION || duration > MAX_DURATION) {
     throw new Error(`Duration ${duration.toFixed(1)}s outside ${MIN_DURATION}-${MAX_DURATION}s range, skipping`);
   }

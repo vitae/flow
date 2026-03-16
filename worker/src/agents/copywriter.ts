@@ -55,9 +55,13 @@ const HASHTAG_POOL = [
   'festival', 'hooping', 'poi', 'firedance', 'viralshorts',
 ];
 
+// These hashtags are always included for YouTube Shorts discoverability
+const REQUIRED_HASHTAGS = ['shorts', 'viral', 'trending', 'fyp'];
+
 function pickHashtags(count: number = 10): string[] {
-  const shuffled = [...HASHTAG_POOL].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
+  const remaining = HASHTAG_POOL.filter(h => !REQUIRED_HASHTAGS.includes(h));
+  const shuffled = [...remaining].sort(() => Math.random() - 0.5);
+  return [...REQUIRED_HASHTAGS, ...shuffled.slice(0, count - REQUIRED_HASHTAGS.length)];
 }
 
 async function handlePost(post: CuratedPost) {
