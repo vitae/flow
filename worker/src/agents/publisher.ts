@@ -6,8 +6,8 @@ import { getSupabase } from '../shared/supabase';
 import { logActivity } from '../shared/activity-log';
 import { sendPostNotification } from '../lib/email';
 
-const MAX_DAILY_UPLOADS = 8;
-const POLL_INTERVAL_MS = 60 * 1000; // Check every 60s, publish immediately when ready (8/day cap)
+const MAX_DAILY_UPLOADS = 6;
+const POLL_INTERVAL_MS = 3 * 60 * 60 * 1000; // Every 3 hours → 6 uploads spread across 18 hours
 const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // Heartbeat every 4 min
 const MAX_PUBLISH_RETRIES = 2; // Retry YouTube upload up to 2 times before failing
 
@@ -35,6 +35,8 @@ async function getDailyUploadCount(): Promise<number> {
 /** Check if an error is transient and worth retrying */
 function isTransientError(err: any): boolean {
   const msg = (err.message || '').toLowerCase();
+  // Quota exceeded is NOT transient — it won't resolve within retry window
+  if (msg.includes('quota') || msg.includes('exceeded')) return false;
   return (
     msg.includes('timeout') ||
     msg.includes('econnreset') ||
@@ -43,8 +45,7 @@ function isTransientError(err: any): boolean {
     msg.includes('network') ||
     msg.includes('503') ||
     msg.includes('429') ||
-    msg.includes('rate limit') ||
-    msg.includes('quota')
+    msg.includes('rate limit')
   );
 }
 
@@ -98,7 +99,11 @@ async function handlePost(post: CuratedPost) {
     } catch (err: any) {
       lastYtError = err;
       console.error(`[publisher] YouTube upload attempt ${attempt}/${MAX_PUBLISH_RETRIES + 1} failed:`, err.message);
-      if (attempt <= MAX_PUBLISH_RETRIES && isTransientError(err)) {
+      if (!isTransientError(err)) {
+        console.error(`[publisher] Non-transient error, not retrying`);
+        break;
+      }
+      if (attempt <= MAX_PUBLISH_RETRIES) {
         const delay = attempt * 5000; // 5s, 10s
         console.log(`[publisher] Retrying in ${delay / 1000}s...`);
         await new Promise(r => setTimeout(r, delay));
