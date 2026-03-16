@@ -98,7 +98,11 @@ async function handlePost(post: CuratedPost) {
     } catch (err: any) {
       lastYtError = err;
       console.error(`[publisher] YouTube upload attempt ${attempt}/${MAX_PUBLISH_RETRIES + 1} failed:`, err.message);
-      if (attempt <= MAX_PUBLISH_RETRIES && isTransientError(err)) {
+      if (!isTransientError(err)) {
+        console.error(`[publisher] Non-transient error, not retrying`);
+        break;
+      }
+      if (attempt <= MAX_PUBLISH_RETRIES) {
         const delay = attempt * 5000; // 5s, 10s
         console.log(`[publisher] Retrying in ${delay / 1000}s...`);
         await new Promise(r => setTimeout(r, delay));
