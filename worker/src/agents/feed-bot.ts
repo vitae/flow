@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { getSupabase } from '../shared/supabase';
 import { logActivity } from '../shared/activity-log';
 
@@ -7,9 +8,10 @@ import { logActivity } from '../shared/activity-log';
  * existing posts, and feeds the scout pipeline with fresh URLs.
  *
  * Sources:
- *  1. Instagram Explore / Reels API (top_media for broad viral hashtags)
- *  2. Instagram trending audio reels (reels using popular sounds go viral)
- *  3. TikTok trending → cross-posted to IG (scrape public embed pages)
+ *  1. Instagram Graph API — top_media for massive viral hashtags (weekly trending)
+ *  2. Instagram Private API — clips/trending endpoint (algorithmically trending)
+ *  3. Instagram Private API — clips/search for viral keywords
+ *  4. TikTok trending feed (logged for future use)
  */
 
 const FEED_INTERVAL_MS = 30 * 60 * 1000; // Every 30 min
@@ -19,7 +21,114 @@ const MIN_LIKES = 5_000; // Minimum likes to consider "trending"
 
 let lastHeartbeat = 0;
 
-// ── Source 1: Instagram Explore top reels via public embed API ──────────────
+// ── Source 1: Instagram Graph API — weekly top reels for viral hashtags ─────
+
+// These are MASSIVE hashtags — Graph API top_media returns the best-performing
+// posts from the past week, so we get genuinely trending weekly content.
+const GRAPH_API_VIRAL_HASHTAGS = [
+  'viral', 'viralreels', 'trending', 'trendingreels',
+  'reels', 'reelsviral', 'explore', 'explorepage',
+  'fyp', 'foryou', 'foryoupage',
+  'satisfying', 'oddlysatisfying',
+  'funny', 'funnyvideos', 'comedy',
+  'dance', 'talent', 'skills', 'nextlevel',
+  'amazing', 'incredible', 'insane',
+  'mustwatch', 'watchthis', 'waitforit',
+];
+
+// Pick a rotating subset each run to stay within the 30 unique hashtags / 7-day window
+const GRAPH_HASHTAGS_PER_RUN = 4;
+
+async function fetchWeeklyTrendingViaGraphAPI(): Promise<DiscoveredReel[]> {
+  const reels: DiscoveredReel[] = [];
+  const supabase = getSupabase();
+
+  // Get the IG Graph API token from social_connections
+  const { data: igConn } = await supabase
+    .from('social_connections')
+    .select('access_token, platform_user_id')
+    .eq('platform', 'instagram')
+    .eq('is_active', true)
+    .limit(1)
+    .single();
+
+  if (!igConn?.access_token || !igConn?.platform_user_id) {
+    console.log('[feed-bot] No active Instagram Graph API connection, skipping weekly trending');
+    return reels;
+  }
+
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appSecret) {
+    console.log('[feed-bot] No META_APP_SECRET, skipping Graph API source');
+    return reels;
+  }
+
+  const token = igConn.access_token;
+  const igUserId = igConn.platform_user_id;
+  const proof = crypto.createHmac('sha256', appSecret).update(token).digest('hex');
+
+  // Pick a rotating subset of hashtags based on the current hour
+  const hourIndex = Math.floor(Date.now() / 3600000) % Math.ceil(GRAPH_API_VIRAL_HASHTAGS.length / GRAPH_HASHTAGS_PER_RUN);
+  const start = hourIndex * GRAPH_HASHTAGS_PER_RUN;
+  const hashtags = GRAPH_API_VIRAL_HASHTAGS.slice(start, start + GRAPH_HASHTAGS_PER_RUN);
+
+  console.log(`[feed-bot] Graph API: searching ${hashtags.map(h => `#${h}`).join(', ')}`);
+
+  for (const hashtag of hashtags) {
+    try {
+      // Step 1: Get the hashtag ID
+      const searchRes = await fetch(
+        `https://graph.facebook.com/v21.0/ig_hashtag_search?q=${encodeURIComponent(hashtag)}&user_id=${igUserId}&access_token=${token}&appsecret_proof=${proof}`
+      );
+      const searchData = await searchRes.json();
+      if (searchData.error || !searchData.data?.[0]?.id) {
+        console.log(`[feed-bot] Graph API #${hashtag}: ${searchData.error?.message || 'no results'}`);
+        continue;
+      }
+
+      const hashtagId = searchData.data[0].id;
+
+      // Step 2: Get top_media (best performing posts from past ~week)
+      const mediaRes = await fetch(
+        `https://graph.facebook.com/v21.0/${hashtagId}/top_media?user_id=${igUserId}&fields=id,media_type,permalink,like_count,comments_count,caption,timestamp&access_token=${token}&appsecret_proof=${proof}`
+      );
+      const mediaData = await mediaRes.json();
+      if (mediaData.error) {
+        console.log(`[feed-bot] Graph API #${hashtag} media: ${mediaData.error.message}`);
+        continue;
+      }
+
+      const videos = (mediaData.data || []).filter((m: any) => m.media_type === 'VIDEO');
+
+      for (const v of videos) {
+        const likeCount = v.like_count || 0;
+        if (likeCount < MIN_LIKES) continue;
+
+        reels.push({
+          source: 'ig_graph_weekly',
+          media_id: String(v.id),
+          permalink: v.permalink,
+          username: v.caption?.match(/@(\w+)/)?.[1] || 'creator',
+          like_count: likeCount,
+          comment_count: v.comments_count || 0,
+          caption: v.caption || '',
+        });
+      }
+
+      console.log(`[feed-bot] Graph API #${hashtag}: ${videos.length} videos, ${reels.length} with ${MIN_LIKES}+ likes`);
+    } catch (err: any) {
+      console.error(`[feed-bot] Graph API #${hashtag} failed: ${err.message}`);
+    }
+
+    // Small delay between hashtag lookups to respect rate limits
+    await new Promise(r => setTimeout(r, 1000));
+  }
+
+  console.log(`[feed-bot] Graph API weekly: ${reels.length} total trending reels`);
+  return reels;
+}
+
+// ── Source 2: Instagram Explore top reels via private API ───────────────────
 
 /** Scrape public IG explore/reels pages for trending content */
 async function scrapeIGExploreReels(): Promise<DiscoveredReel[]> {
@@ -84,7 +193,7 @@ async function scrapeIGExploreReels(): Promise<DiscoveredReel[]> {
   return reels;
 }
 
-// ── Source 2: Instagram Reels search for broad viral keywords ───────────────
+// ── Source 3: Instagram Reels search for broad viral keywords ───────────────
 
 const VIRAL_SEARCH_QUERIES = [
   'viral reel', 'trending now', 'must watch', 'satisfying video',
@@ -157,7 +266,7 @@ async function searchIGReelsByKeyword(): Promise<DiscoveredReel[]> {
   return reels;
 }
 
-// ── Source 3: TikTok trending → find IG cross-posts ────────────────────────
+// ── Source 4: TikTok trending → find IG cross-posts ────────────────────────
 
 async function scrapeTikTokTrending(): Promise<DiscoveredReel[]> {
   const reels: DiscoveredReel[] = [];
@@ -225,18 +334,20 @@ async function discoverAndQueue(): Promise<{ sources: Record<string, number>; qu
   const sourceCounts: Record<string, number> = {};
 
   // Collect from all sources in parallel
-  const [igTrending, igSearch, tiktok] = await Promise.all([
+  const [igGraphWeekly, igTrending, igSearch, tiktok] = await Promise.all([
+    fetchWeeklyTrendingViaGraphAPI(),
     scrapeIGExploreReels(),
     searchIGReelsByKeyword(),
     scrapeTikTokTrending(),
   ]);
 
+  sourceCounts.ig_graph_weekly = igGraphWeekly.length;
   sourceCounts.ig_trending = igTrending.length;
   sourceCounts.ig_search = igSearch.length;
   sourceCounts.tiktok_trending = tiktok.length;
 
-  // Merge all results
-  const allReels = [...igTrending, ...igSearch, ...tiktok];
+  // Merge all results — Graph API (weekly) first since it's the most reliable source
+  const allReels = [...igGraphWeekly, ...igTrending, ...igSearch, ...tiktok];
 
   if (!allReels.length) {
     console.log('[feed-bot] No reels found across any source');
