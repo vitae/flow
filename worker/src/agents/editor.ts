@@ -3,7 +3,7 @@ import { CuratedPost } from '../shared/types';
 import { trimToShorts, getVideoDuration, ensureVertical, ensureLocalFile, uploadToStorage, ensureShortsResolution } from '../lib/ffmpeg';
 
 const MIN_DURATION = 3; // YouTube Shorts minimum
-const MAX_DURATION = 180; // YouTube Shorts maximum (3 minutes)
+const MAX_DURATION = 59; // YouTube Shorts maximum for API uploads (1s buffer)
 
 async function handlePost(post: CuratedPost) {
   if (!post.video_path) throw new Error('No video_path set');
