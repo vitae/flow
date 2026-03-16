@@ -762,7 +762,7 @@ app.post('/test-single', auth, async (req: any, res: any) => {
     // Step 1: Download video from Instagram
     log.push('[download] Fetching video from Instagram private API...');
     const { getVideoUrl } = await import('./lib/instagram');
-    const { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts, uploadToStorage: uploadToStor } = await import('./lib/ffmpeg');
+    const { downloadFile, getVideoDuration, stripAudio, ensureVerticalAndScale, trimToShorts, uploadToStorage: uploadToStor } = await import('./lib/ffmpeg');
     const { uploadToYouTube } = await import('./lib/youtube');
 
     let videoUrl: string, width: number, height: number;
@@ -812,8 +812,7 @@ app.post('/test-single', auth, async (req: any, res: any) => {
     log.push('[edit] Vertical crop, scale 1080x1920, trim to 59s...');
     let editedPath: string;
     try {
-      editedPath = await ensureVertical(silentPath);
-      editedPath = await ensureShortsResolution(editedPath);
+      editedPath = await ensureVerticalAndScale(silentPath);
       editedPath = await trimToShorts(editedPath, 59);
     } catch (editErr: any) {
       log.push(`[edit] FAILED: ${editErr.message}`);
@@ -947,7 +946,7 @@ app.post('/burst', auth, async (req: any, res: any) => {
 
     // --- Phase 2: Pipeline each video end-to-end ---
     const { getVideoUrl } = await import('./lib/instagram');
-    const { downloadFile, getVideoDuration, stripAudio, ensureVertical, ensureShortsResolution, trimToShorts, uploadToStorage, cleanup: cleanupFiles } = await import('./lib/ffmpeg');
+    const { downloadFile, getVideoDuration, stripAudio, ensureVerticalAndScale, trimToShorts, uploadToStorage, cleanup: cleanupFiles } = await import('./lib/ffmpeg');
     const { uploadToYouTube } = await import('./lib/youtube');
 
     const results: { post_id: string; ok: boolean; youtube_url?: string; error?: string }[] = [];
@@ -992,11 +991,8 @@ app.post('/burst', auth, async (req: any, res: any) => {
         send({ phase: 'edit', video: i + 1, message: `Editing: vertical, 1080x1920, trim...` });
         await supabase.from('curated_posts').update({ status: 'editing' }).eq('id', post.id);
 
-        const verticalPath = await ensureVertical(silentPath);
-        if (verticalPath !== silentPath) tempFiles.push(verticalPath);
-
-        const scaledPath = await ensureShortsResolution(verticalPath);
-        if (scaledPath !== verticalPath) tempFiles.push(scaledPath);
+        const scaledPath = await ensureVerticalAndScale(silentPath);
+        if (scaledPath !== silentPath) tempFiles.push(scaledPath);
 
         const trimmedPath = await trimToShorts(scaledPath, 59);
         if (trimmedPath !== scaledPath) tempFiles.push(trimmedPath);
