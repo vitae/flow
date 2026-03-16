@@ -340,54 +340,6 @@ async function signShortcut(unsignedPlist: string): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
-function installPage(currentUrl: string): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Install Flow Shortcut</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0a0a0f;color:#fff;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px}
-  .card{max-width:400px;width:100%;background:linear-gradient(135deg,rgba(0,180,220,.12),rgba(140,80,220,.12));border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:32px 24px;text-align:center}
-  h1{font-size:24px;margin:16px 0 8px;background:linear-gradient(90deg,#22d3ee,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-  .sub{color:rgba(255,255,255,.5);font-size:14px;margin-bottom:24px}
-  label{display:block;text-align:left;color:rgba(255,255,255,.6);font-size:13px;margin-bottom:6px}
-  input{width:100%;padding:14px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);border-radius:12px;color:#fff;font-family:monospace;font-size:14px;outline:none;margin-bottom:16px}
-  input:focus{border-color:#22d3ee}
-  input::placeholder{color:rgba(255,255,255,.25)}
-  button{width:100%;padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:700;color:#fff;background:linear-gradient(90deg,#06b6d4,#8b5cf6);cursor:pointer;transition:opacity .2s}
-  button:disabled{opacity:.3;cursor:not-allowed}
-  button:active:not(:disabled){opacity:.8;transform:scale(.98)}
-  .hint{color:rgba(255,255,255,.35);font-size:12px;margin-top:16px;line-height:1.5}
-  .icon{font-size:48px;margin-bottom:4px}
-  .steps{text-align:left;margin-top:20px;padding:16px;background:rgba(0,0,0,.3);border-radius:14px;font-size:13px;color:rgba(255,255,255,.5);line-height:1.8}
-  .steps b{color:rgba(255,255,255,.8)}
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="icon">&#9889;</div>
-  <h1>Upload to Flow</h1>
-  <p class="sub">iOS Shortcut &mdash; one-tap video upload to your AI pipeline</p>
-  <form id="f" method="GET" action="${esc(currentUrl)}">
-    <label for="key">Your UPLOAD_API_KEY</label>
-    <input id="key" name="key" type="text" placeholder="Paste API key from Railway" required autocomplete="off" autocorrect="off" spellcheck="false">
-    <button type="submit">Download Shortcut</button>
-  </form>
-  <div class="steps">
-    <b>After installing:</b><br>
-    1. Download any video on your phone<br>
-    2. Tap <b>Share</b> &rarr; <b>Upload to Flow</b><br>
-    3. Video goes straight to your agent pipeline
-  </div>
-  <p class="hint">Your key is baked into the shortcut file and never sent anywhere else.</p>
-</div>
-</body>
-</html>`;
-}
-
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get('key') || undefined;
 
@@ -396,15 +348,7 @@ export async function GET(req: NextRequest) {
   const host = req.headers.get('host') || 'gwdf.pro';
   const baseUrl = `${proto}://${host}`;
 
-  // No key → show the install page with API key form
-  if (!key) {
-    const currentUrl = `${baseUrl}/api/swarm/shortcut`;
-    return new NextResponse(installPage(currentUrl), {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
-  }
-
-  // Build the unsigned plist, then sign it via Apple's API
+  // Build the unsigned plist (no key → shortcut prompts user on first run)
   const plist = buildShortcut(baseUrl, key);
   try {
     const signed = await signShortcut(plist);
