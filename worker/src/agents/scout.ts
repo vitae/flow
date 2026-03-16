@@ -2,43 +2,64 @@ import { getSupabase } from '../shared/supabase';
 import { logActivity } from '../shared/activity-log';
 import { getTodaysHashtags, getIGAccessToken, searchHashtag, IGMedia } from '../lib/instagram';
 
-const SCOUT_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes between hashtag searches
+const SCOUT_INTERVAL_MS = 30 * 60 * 1000; // Every 30 minutes — search ALL hashtags
+const MAX_QUEUE_PER_RUN = 5; // Queue up to 5 most viral per run
 const MIN_ENGAGEMENT = 25_000;  // Primary: viral (25k+ engagement score)
 const MIN_ENGAGEMENT_FALLBACK = 5_000; // Fallback: decent traction (5k+)
-const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // Heartbeat every 4 min
+const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000;
 
-let hashtagIndex = 0;
 let lastHeartbeat = 0;
 
-async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
+/** Search ALL of today's hashtags, rank by engagement, queue the top viral reels */
+async function scoutAllHashtags(): Promise<{ searched: number; queued: number }> {
   const supabase = getSupabase();
   const hashtags = getTodaysHashtags();
-  const hashtag = hashtags[hashtagIndex % hashtags.length];
-  hashtagIndex++;
-
   const { token, igUserId } = await getIGAccessToken();
-  console.log(`[scout] Searching #${hashtag} (${hashtagIndex}/${hashtags.length})...`);
 
-  const videos = await searchHashtag(hashtag, token, igUserId);
-  if (!videos.length) return { hashtag, queued: 0 };
+  console.log(`[scout] Sweeping ${hashtags.length} hashtags: ${hashtags.map(h => `#${h}`).join(', ')}`);
 
-  // Engagement score = likes + (comments × 10) — comments signal high-view content
-  const scored = videos.map(v => ({
-    ...v,
-    engagementScore: (v.like_count || 0) + (v.comments_count || 0) * 10,
-  }));
+  // Search every hashtag and collect all videos
+  const allVideos: (IGMedia & { engagementScore: number; sourceHashtag: string })[] = [];
 
-  // Only keep the most viral — 50k+ engagement, fallback to 10k+
-  let viral = scored.filter(v => v.engagementScore >= MIN_ENGAGEMENT);
+  for (const hashtag of hashtags) {
+    try {
+      const videos = await searchHashtag(hashtag, token, igUserId);
+      console.log(`[scout] #${hashtag}: ${videos.length} videos`);
+
+      for (const v of videos) {
+        allVideos.push({
+          ...v,
+          engagementScore: (v.like_count || 0) + (v.comments_count || 0) * 10,
+          sourceHashtag: hashtag,
+        });
+      }
+    } catch (err: any) {
+      console.error(`[scout] #${hashtag} failed: ${err.message}`);
+    }
+  }
+
+  if (!allVideos.length) {
+    console.log(`[scout] No videos found across any hashtag`);
+    return { searched: hashtags.length, queued: 0 };
+  }
+
+  // Deduplicate by media ID (same video can appear in multiple hashtags)
+  const unique = [...new Map(allVideos.map(v => [v.id, v])).values()];
+
+  // Filter by engagement threshold
+  let viral = unique.filter(v => v.engagementScore >= MIN_ENGAGEMENT);
   if (!viral.length) {
-    viral = scored.filter(v => v.engagementScore >= MIN_ENGAGEMENT_FALLBACK);
+    viral = unique.filter(v => v.engagementScore >= MIN_ENGAGEMENT_FALLBACK);
   }
   if (!viral.length) {
-    console.log(`[scout] #${hashtag}: ${scored.length} videos but none hit ${MIN_ENGAGEMENT_FALLBACK.toLocaleString()}+ engagement`);
-    return { hashtag, queued: 0 };
+    console.log(`[scout] ${unique.length} videos but none hit ${MIN_ENGAGEMENT_FALLBACK.toLocaleString()}+ engagement`);
+    return { searched: hashtags.length, queued: 0 };
   }
 
-  // Deduplicate against existing posts
+  // Sort by engagement — most viral first
+  viral.sort((a, b) => b.engagementScore - a.engagementScore);
+
+  // Deduplicate against existing posts in DB
   const mediaIds = viral.map(v => v.id);
   const { data: existing } = await supabase
     .from('curated_posts')
@@ -48,14 +69,12 @@ async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
   const newVideos = viral.filter(v => !existingIds.has(v.id));
 
   if (!newVideos.length) {
-    console.log(`[scout] #${hashtag}: ${viral.length} viral but all already queued`);
-    return { hashtag, queued: 0 };
+    console.log(`[scout] ${viral.length} viral videos but all already queued`);
+    return { searched: hashtags.length, queued: 0 };
   }
 
-  // Queue new videos sorted by engagement score (most viral first)
-  const toQueue = newVideos
-    .sort((a, b) => b.engagementScore - a.engagementScore)
-    .slice(0, 3);
+  // Queue the top N most viral
+  const toQueue = newVideos.slice(0, MAX_QUEUE_PER_RUN);
 
   const rows = toQueue.map(v => {
     const mentionMatch = v.caption?.match(/@(\w+)/);
@@ -71,43 +90,45 @@ async function scoutOneHashtag(): Promise<{ hashtag: string; queued: number }> {
   });
 
   await supabase.from('curated_posts').insert(rows);
-  console.log(`[scout] #${hashtag}: queued ${rows.length} new videos (top: ${toQueue[0].like_count?.toLocaleString()} likes, ${toQueue[0].comments_count || 0} comments, score: ${toQueue[0].engagementScore.toLocaleString()})`);
-  await logActivity('scout', 'discovered', {
-    hashtag,
-    queued: rows.length,
-    top_likes: toQueue[0].like_count,
-    top_score: toQueue[0].engagementScore,
+
+  console.log(`[scout] ✓ Queued ${rows.length} viral reels from ${hashtags.length} hashtags:`);
+  toQueue.forEach((v, i) => {
+    console.log(`  ${i + 1}. ${v.like_count?.toLocaleString()} likes, score ${v.engagementScore.toLocaleString()} (#${v.sourceHashtag}) → ${v.permalink}`);
   });
-  return { hashtag, queued: rows.length };
+
+  await logActivity('scout', 'discovered', {
+    hashtags_searched: hashtags.length,
+    total_found: unique.length,
+    viral_count: viral.length,
+    queued: rows.length,
+    top_score: toQueue[0].engagementScore,
+    top_likes: toQueue[0].like_count,
+  });
+
+  return { searched: hashtags.length, queued: rows.length };
 }
 
 // Legacy one-shot function (for /scout endpoint)
 export async function runScout(): Promise<{ discovered: number; queued: number }> {
-  let totalQueued = 0;
-  const hashtags = getTodaysHashtags();
-  for (const _h of hashtags) {
-    const { queued } = await scoutOneHashtag();
-    totalQueued += queued;
-  }
-  return { discovered: hashtags.length, queued: totalQueued };
+  const result = await scoutAllHashtags();
+  return { discovered: result.searched, queued: result.queued };
 }
 
-// Continuous scouting loop — one hashtag every 10min
+// Continuous scouting loop — all hashtags every 30 minutes
 export function startScout() {
-  console.log(`[scout] Continuous scout started — 1 hashtag every ${SCOUT_INTERVAL_MS / 1000}s`);
+  console.log(`[scout] Continuous scout started — ALL hashtags every ${SCOUT_INTERVAL_MS / 60000} minutes, top ${MAX_QUEUE_PER_RUN} per run`);
 
   async function tick() {
     try {
-      const result = await scoutOneHashtag();
-      // Log heartbeat when no new content found so dashboard shows ONLINE
+      const result = await scoutAllHashtags();
       if (result.queued === 0) {
         const now = Date.now();
         if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
           lastHeartbeat = now;
-          await logActivity('scout', 'heartbeat', { status: 'scanning', hashtag: result.hashtag });
+          await logActivity('scout', 'heartbeat', { status: 'scanning', searched: result.searched });
         }
       } else {
-        lastHeartbeat = Date.now(); // discovered log counts as alive
+        lastHeartbeat = Date.now();
       }
     } catch (err: any) {
       console.error(`[scout] Error:`, err.message);
