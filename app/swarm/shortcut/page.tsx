@@ -126,14 +126,14 @@ export default function ShortcutSetupPage() {
             Upload Videos From Your Phone
           </h1>
           <p className="text-white/60 text-lg max-w-xl mx-auto">
-            Share a video URL from Safari or a video file — the shortcut auto-detects and feeds it into your YouTube Shorts pipeline.
+            Share a video from your Camera Roll or Files app — the shortcut uploads it directly into your YouTube Shorts pipeline.
           </p>
         </div>
 
         {/* How it works */}
         <div className="grid grid-cols-3 gap-4 text-center">
           {[
-            { emoji: '🧭', label: 'Find in Safari' },
+            { emoji: '🎬', label: 'Pick a Video' },
             { emoji: '📤', label: 'Share → Shortcut' },
             { emoji: '🤖', label: 'Auto YouTube Shorts' },
           ].map((step, i) => (
@@ -304,23 +304,10 @@ export default function ShortcutSetupPage() {
           </Step>
 
           <Step n={4} title="Use It!">
-            <p>Two ways to use it — the shortcut auto-detects which one you&apos;re doing:</p>
-
-            <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-lg p-4 space-y-2">
-              <div className="text-cyan-400 font-bold">Option A: Share a URL from Safari</div>
-              <ol className="list-decimal list-inside space-y-1 text-sm">
-                <li>Find a video in <strong>Safari</strong> (Instagram, TikTok, etc.)</li>
-                <li>Tap the <strong>Share</strong> button in Safari</li>
-                <li>Select <strong>&quot;Upload to Flow&quot;</strong></li>
-                <li>The server downloads the video and queues it automatically</li>
-              </ol>
-            </div>
-
             <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4 space-y-2">
-              <div className="text-purple-400 font-bold">Option B: Share a video file</div>
               <ol className="list-decimal list-inside space-y-1 text-sm">
-                <li>Save a video to your Camera Roll or Files</li>
-                <li>Tap <strong>Share</strong> on the video</li>
+                <li>Open a video in your <strong>Camera Roll</strong> or <strong>Files</strong></li>
+                <li>Tap <strong>Share</strong></li>
                 <li>Select <strong>&quot;Upload to Flow&quot;</strong></li>
                 <li>The video uploads directly to the pipeline</li>
               </ol>
@@ -328,7 +315,7 @@ export default function ShortcutSetupPage() {
 
             <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg p-4 mt-2">
               <p className="text-sm">
-                Either way, the video enters the pipeline as <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">downloaded</code> —
+                The video enters the pipeline as <code className="px-1.5 py-0.5 bg-white/10 rounded text-green-300">downloaded</code> —
                 agents handle audio stripping, 9:16 formatting, 1080x1920 scaling, ≤59s trimming, viral titles, and YouTube Shorts upload automatically.
               </p>
             </div>
